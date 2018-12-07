@@ -26,3 +26,5 @@ Thumbs.db
 .cache-main
 .cache-tests
 logs
+/src/archive/
+/src/test/

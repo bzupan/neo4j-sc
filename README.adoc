@@ -1,16 +1,541 @@
-= Neo4j Procedure Template
-:branch: 3.4
-:root: https://github.com/neo4j-examples/neo4j-procedure-template/blob/{branch}/src
-
-This project is an example you can use to build user defined procedures, functions and aggregation functions in Neo4j.
-It contains two procedures, for reading and updating a full-text index.
-
-To try this out, simply clone this repository and have a look at the source and test code (including Test-Server-Setup).
-
-[Note]
-This project requires a Neo4j {branch}.x dependency.
+== User Defined sc Neo4j Functions - Procedures
 
 
+==== Setup
+
+
+- edit neo4j.conf and add  sc.*  e.g.: 
+
+[source,neo4j.conf]
+----
+dbms.security.procedures.unrestricted=apoc.*,,sc.*
+dbms.security.procedures.whitelist=apoc.*,sc.*
+----
+- copy sc-neo4j-3.4.x.x.jar to Neo4j plugins directory e.g.:
+
+[source,bash]
+----
+copy /b/v/y C:\brane\NetBeansProjects\neo4j-procedure-functions\target\sc-neo4j-3.4.0.0.jar C:\brane\NetBeansProjects\neo4j-desktop\neo4jDatabases\database-c6ca431d-2d58-4f6c-b796-9fd6156b5d2d\installation-3.4.9\plugins
+
+----
+- restart neo4j services
+[source,bash]
+----
+service neo4j restart
+----
+
+- check for sc.xxxxxxx with: 
+[source,cypher]
+----
+CALL dbms.functions()
+CALL dbms.procedures()
+----
+
+
+==== urlEncodeString - function
+- sc.rest.urlEncodeString('string') - return url encoded string
+
+====== Example
+[source,cypher]
+----
+RETURN sc.rest.urlEncodeString('aaa.bbb@email.com {jsonString:"!"#$&/()"}') AS urlEncodeString
+----
+[source,cypher]
+----
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++"urlEncodeString"                                                     +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++"aaa.bbb%40email.com+%7BjsonString%3A%22%21%22%23%24%26%2F%28%29%22%7D+
++"                                                                     +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+----
+
+
+
+==== jsonExportNode - function
+- sc.jsonExportNode(neo4jNode) - return json Neo4j Node string"
+
+
+====== Example
+[source,cypher]
+----
+MATCH (n:scTestNode) DETACH DELETE n;
+CREATE (n:scTestNode {string:"string", integer:123, boolean:true, float:123.456}) RETURN n;
+
+MATCH (n:scTestNode)  RETURN sc.jsonExportNode(n) AS jsonExportNode;
+----
+[source,cypher]
+----
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++"jsonExportNode"                                                      +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++"{_id:83,_labels:[scTestNode],_properties:{"boolean":true,"string":"st+
++ring","integer":123,"float":123.456}}"                                +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+----
+
+==== jsonExportNode - function
+- sc.jsonExportNode(neo4jNode) - return json Neo4j Node string"
+
+====== Example
+[source,cypher]
+----
+MATCH (n:scTestNode) DETACH DELETE n;
+CREATE (n:scTestNode {string:"string", integer:123, boolean:true, float:123.456}) RETURN n;
+
+MATCH (n:scTestNode)  RETURN sc.jsonExportNode(n) AS jsonExportNode;
+----
+[source,cypher]
+----
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++"jsonExportNode"                                                      +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++"{_id:83,_labels:[scTestNode],_properties:{"boolean":true,"string":"st+
++ring","integer":123,"float":123.456}}"                                +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+----
+
+
+
+==== jsonExportRelationship - function
+- sc.jsonExportRelationship(neo4jRelationship) - return json Neo4j Relationship string"
+
+====== Example
+[source,cypher]
+----
+MATCH ()-[r:scTesttRelationship]->() DELETE r
+CREATE (:scTestNode)-[r:scTesttRelationship {string:"string", integer:123, boolean:true, float:123.456}]->(:scTestNode) RETURN r
+
+MATCH ()-[r:scTesttRelationship]->()  RETURN sc.jsonExportRelationship(r) AS jsonExportRelationship
+----
+[source,cypher]
+----
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++"jsonExportRelationship"                                              +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++"{_id:33,_from:232,_to:233,_type:scTesttRelationship,_properties:{"boo+
++lean":true,"string":"string","integer":123,"float":123.456}}"         +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+----
+
+
+
+
+==== httpPostJson  httpPostNode - function
+Run http/https json post and receive response from REST
+
+- sc.rest.httpJsonPost(\"url string\", {json document}) - return json document
+- sc.rest.httpPostNode(\"url string\", neo4jNode) - return json document
+- sc.rest.httpPostRelationship(\"url string\", neo4jRelationship) - return json document
+
+====== Example
+REST server
+[source,node.js]
+----
+var express = require('express')
+var http = require('http');
+var https = require('https');
+var bodyParser = require('body-parser');
+var fs = require('fs');
+
+var app = express();
+app.use(bodyParser.json());
+http.createServer(app).listen(80);
+console.log("http server started port 8080 - https 8443")
+
+var pk = fs.readFileSync(__dirname+'\\server.key', 'utf8');
+var pc = fs.readFileSync(__dirname+'\\server.crt', 'utf8');
+var httpsOptions = {
+    key: pk,
+    cert: pc,
+    secureProtocol: "TLSv1_2_method"
+};
+
+https.createServer(httpsOptions, app).listen({port: 8443}); //, host: "10.10.3.123" 
+http.createServer(app).listen(8080);
+
+app.post('/restTest', function (req, res) {
+    console.log('/restTest', req)
+    var responseJson = {
+        "error": null,
+        "string": "string",
+        "boolean": true,
+        "integer": 123,
+        "float": 123.456,
+        "object": {
+            "string": "string",
+            "boolean": true,
+            "integer": 123
+        },
+        array: ["string", true, 123, 123.456, {
+                "string": "string",
+                "boolean": true,
+                "integer": 123
+            }],
+        "request": req.body,
+    }
+    res.json(responseJson);
+});
+----
+httpPostJson
+[source,cypher]
+----
+RETURN sc.rest.httpPostJson("http://127.0.0.1/restTest", {name:123}) AS postResponse
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++"postResponse"                                                        +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++{"request":{"name":123.0},"boolean":true,"string":"string","array":["s+
++tring",true,123.0,123.456,{"string":"string","boolean":true,"integer":+
++123.0}],"integer":123.0,"error":null,"float":123.456,"object":{"string+
++":"string","boolean":true,"integer":123.0}}                           +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+----
+httpPostNode
+[source,cypher]
+----
+MATCH (n:scTestNode) DETACH DELETE n;
+CREATE (n:scTestNode {string:"string", integer:123, boolean:true, float:123.456}) RETURN n;
+
+MATCH (n:scTestNode)
+RETURN sc.rest.httpPostNode("http://127.0.0.1/restTest", n) AS postResponseNode
+----
+[source,cypher]
+----
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++"postResponseNode"                                                    +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++{"request":{"boolean":true,"integer":123.0,"string":"string","float":1+
++23.456},"boolean":true,"string":"string","array":["string",true,123.0,+
++123.456,{"string":"string","boolean":true,"integer":123.0}],"integer":+
++123.0,"error":null,"float":123.456,"object":{"string":"string","boolea+
++n":true,"integer":123.0}}                                             +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+----
+
+httpPostRelationship
+[source,cypher]
+----
+MATCH ()-[r:scTesttRelationship]->() DELETE r
+CREATE (:scTestNode)-[r:scTesttRelationship {string:"string", integer:123, boolean:true, float:123.456}]->(:scTestNode) RETURN r
+
+MATCH ()-[r:scTesttRelationship]->()  
+RETURN sc.rest.httpPostRelationship("http://127.0.0.1/restTest", r) AS postResponseRelationship
+----
+[source,cypher]
+----
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++"postResponseRelationship"                                            +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++{"request":{"boolean":true,"integer":123.0,"string":"string","float":1+
++23.456},"boolean":true,"string":"string","array":["string",true,123.0,+
++123.456,{"string":"string","boolean":true,"integer":123.0}],"integer":+
++123.0,"error":null,"float":123.456,"object":{"string":"string","boolea+
++n":true,"integer":123.0}}                                             +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+----
+
+
+
+
+
+
+
+==== Cypher Java VM - functions/procedures
+Store cypher query into Neo4j Java VM and run query when needed
+- sc.cypher.addVm('name', 'cypher query', {cypher query parameters}) - add CYPHER Java VM calls
+- sc.cypher.listVm() - list all CYPHER java VM calls
+- sc.cypher.runProcedureVm(\"stringFunctionName\", {object:\"params\"} - run CYPHER from Java VM
+- sc.cypher.deleteVm('name') - add CYPHER Java VM calls
+
+
+====== Example
+Add  queries:
+[source,cypher]
+----
+RETURN sc.cypher.addVm('addTestNode', 'CREATE (n:scTestNode) SET n.name=$name RETURN n')
+RETURN sc.cypher.addVm('listAllTestNodes', 'MATCH (n:scTestNode) RETURN n')
+RETURN sc.cypher.addVm('deleteAllTestNodes', 'MATCH (n:scTestNode) DETACH DELETE n')
+
+RETURN sc.cypher.listVm()
+----
+Use  queries:
+[source,cypher]
+----
+CALL sc.cypher.runVm('addTestNode', {name:"nd01"})
+CALL sc.cypher.runVm('addTestNode', {name:"nd02"})
+CALL sc.cypher.runVm('addTestNode', {name:"nd03"})
+
+CALL sc.cypher.runVm('listAllTestNodes', {name:"nd03"})
+
+CALL sc.cypher.runVm('deleteAllTestNodes', {})
+CALL sc.cypher.runVm('listAllTestNodes', {name:"nd03"})
+----
+Remove  queries:
+[source,cypher]
+----
+RETURN sc.cypher.listVm()
+RETURN sc.cypher.deleteVm('deleteAllTestNodes')
+RETURN sc.cypher.listVm()
+RETURN sc.cypher.deleteVm('addTestNode')
+RETURN sc.cypher.deleteVm('listAllTestNodes')
+RETURN sc.cypher.listVm()
+----
+
+
+
+==== Cypher Neo4j DB - functions/procedures
+Store cypher query into Neo4j DB as nodes and run query when needed
+
+- sc.cypher.addDb('name', 'cypher query', {cypher query parameters}) - add CYPHER Java VM calls
+- sc.cypher.listDb() - list all CYPHER java VM calls
+- sc.cypher.runProcedureDb(\"stringFunctionName\", {object:\"params\"} - run CYPHER from Java VM
+- sc.cypher.deleteDb('name') - add CYPHER Java VM calls
+
+
+====== Example
+Add  queries:
+[source,cypher]
+----
+CALL sc.cypher.addDb('addTestNode', 'CREATE (n:scTestNode) SET n.name=$name RETURN n')
+CALL sc.cypher.addDb('listAllTestNodes', 'MATCH (n:scTestNode) RETURN n')
+CALL sc.cypher.addDb('deleteAllTestNodes', 'MATCH (n:scTestNode) DETACH DELETE n')
+
+RETURN sc.cypher.listDb()
+----
+Use  queries:
+[source,cypher]
+----
+CALL sc.cypher.runDb('listAllTestNodes', {name:"nd03"})
+
+CALL sc.cypher.runDb('addTestNode', {name:"nd01"})
+CALL sc.cypher.runDb('addTestNode', {name:"nd02"})
+CALL sc.cypher.runDb('addTestNode', {name:"nd03"})
+
+CALL sc.cypher.runDb('listAllTestNodes', {name:"nd03"})
+
+CALL sc.cypher.runDb('deleteAllTestNodes', {})
+CALL sc.cypher.runDb('listAllTestNodes', {name:"nd03"})
+----
+Remove  queries:
+[source,cypher]
+----
+RETURN sc.cypher.listDb()
+CALL sc.cypher.deleteDb('deleteAllTestNodes')
+RETURN sc.cypher.listDb()
+CALL sc.cypher.deleteDb('addTestNode')
+CALL sc.cypher.deleteDb('listAllTestNodes')
+RETURN sc.cypher.listDb()
+----
+
+
+
+cypher node management
+[source,cypher]
+----
+// find CypherRunDb
+MATCH (n:CypherRunDb) 
+RETURN n
+----
+[source,cypher]
+----
+// delete all CypherRunDb
+MATCH (n:CypherRunDb) 
+DETACH DELETE n
+----
+==== Cypher Neo4j VM - DB Examples
+====== example - string return
+
+[source,cypher]
+----
+// create 
+CREATE (n:CypherRunDb) 
+SET 
+    n.name="stringFunction",
+    n.type="CypherRunDb",  
+    n.query= "RETURN \"string from query\" AS string" 
+RETURN n
+----
+[source,cypher]
+----
+// check 
+MATCH (n:CypherRunDb) 
+WHERE n.name="stringFunction"
+RETURN n
+----
+[source,cypher]
+----
+// run
+CALL sc.cypher.runDb("stringFunction", {}) 
+----
+
+
+====== example - url creating 
+
+[source,cypher]
+----
+// create 
+RETURN sc.cypher.addVm("getUrl", "RETURN \"http://:\" + $ipAddress + \"/\"+ $restMethod AS url")
+
+----
+[source,cypher]
+----
+// run
+CALL sc.cypher.runVm("getUrl", {ipAddress:"127.0.0.1",restMethod:"testPost"})
+----
+
+
+====== example - search nodes with parameters
+
+[source,cypher]
+----
+CREATE (n:person) SET n.name="abc";
+CREATE (n:person) SET n.name="def";
+CREATE (n:person) SET n.name="ghi";
+
+RETURN sc.cypher.addVm("findPerson", "MATCH (n:person) WHERE n.name=$name RETURN n")
+----
+
+[source,cypher]
+----
+// run
+CALL sc.cypher.runVm("findPerson", {name:"abc"})
+----
+
+
+
+
+====  EVAL JavaScript Neo4j Java VM - function
+Run JavaScript via java Nashorn JavaScript engine for the JVM and receive JavaScript response
+
+- sc.javascript.run("javascript script string", jsParams)"  - javascript response          
+
+- sc.javascript.addDb('name', 'cypher query', {cypher query parameters}) - add JavaScript Java VM calls
+- sc.javascript.listDb() - list all JavaScript java VM calls
+- sc.javascript.runProcedureDb(\"stringFunctionName\", {object:\"params\"} - run JavaScript from Java VM
+- sc.javascript.deleteDb('name') - add JavaScript Java VM calls
+!!! jsParams  - parameters JavaScript var name!
+
+====== Example run JavaScript
+[source,cypher]
+----
+WITH "
+return 'Hello, from javascript with string parameter: ' + jsParams + '!';"
+AS javaScriptString
+
+RETURN sc.javascript.run(javaScriptString, "input params string")
+----  
+[source,cypher]
+----
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++"sc.javascript.run(javaScriptString, "input params string")"        +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++"Hello, from javascript with string parameter: input params string!"+
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+----
+
+
+[source,cypher]
+----
+WITH "
+var properties = JSON.parse(jsParams); 
+var replyString = 'return Hello, from javascript with json object params: ' + properties.name + '!';
+return replyString;"
+AS javaScriptString
+
+WITH "{\"name\":\"abc\", \"address\":\"def 12\"}" AS properties, javaScriptString
+
+RETURN sc.javascript.run(javaScriptString, properties)
+----   
+
+[source,cypher]
+----
+WITH "
+var properties = JSON.parse(jsParams); 
+var replyObject = {
+name:properties.name || 'default',
+address:properties.address || 'default' ,
+telephone:properties.telephone || 'default' 
+};
+return replyObject;"
+AS checkInputDataJs
+
+WITH "{\"name\":\"abc\", \"address\":\"def 12\"}" AS dataToCheck, checkInputDataJs
+WITH  sc.javascript.run(checkInputDataJs, dataToCheck) AS jsResponse
+
+RETURN jsResponse.telephone
+----
+
+
+
+
+
+
+====== Example register / use JavaScript
+
+Add  javascript:
+[source,cypher]
+----
+WITH "
+var properties = JSON.parse(jsParams); 
+var replyObject = {
+name:properties.name || 'default',
+address:properties.address || 'default' ,
+telephone:properties.telephone || 'default' 
+};
+return replyObject;"
+AS checkInputDataJs
+RETURN sc.javascript.addVm('checkforTelephone', checkInputDataJs)
+
+
+RETURN sc.javascript.listVm()
+----
+Use  javascript:
+[source,cypher]
+----
+WITH "{\"name\":\"abc\", \"address\":\"def 12\"}" AS dataToCheck
+RETURN sc.javascript.runVm('checkforTelephone', dataToCheck)
+
+
+WITH "{\"name\":\"abc\", \"telephone\":\"12345 67 12\"}" AS dataToCheck
+RETURN sc.javascript.runVm('checkforTelephone', dataToCheck)
+
+
+RETURN sc.javascript.runVm('checkforTelephone', '{"name":"nd03"}')
+----
+Remove  javascript:
+[source,cypher]
+----
+RETURN sc.javascript.listVm()
+RETURN sc.javascript.deleteVm('checkforTelephone')
+RETURN sc.javascript.listVm()
+----
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+=== ---------------------------------------------------------------------
+=== ---------------------------------------------------------------------
+=== ---------------------------------------------------------------------
 === User Defined Procedure
 
 The user defined procedure allows you to index and search a explicit Lucene index within Neo4j.
@@ -65,3 +590,7 @@ that can be deployed in the `plugin` directory of your Neo4j instance.
 == License
 
 Apache License V2, see LICENSE
+[source,]
+----
+
+----
