@@ -3,7 +3,7 @@
                       http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.sc.neo4j.functions</groupId>
+    <groupId>org.sc.neo4j</groupId>
     <artifactId>sc-neo4j</artifactId>
     <version>3.4.0.0</version>
 
@@ -27,7 +27,32 @@
             <version>${neo4j.version}</version>
             <scope>provided</scope>
         </dependency>
+        
+        <!-- Test Dependencies -->
+        <dependency>
+            <!-- This is used for a utility that lets us start Neo4j with
+            a specific Procedure, which is nice for writing tests. -->
+            <groupId>org.neo4j.test</groupId>
+            <artifactId>neo4j-harness</artifactId>
+            <version>${neo4j.version}</version>
+            <scope>test</scope>
+        </dependency>
 
+        <dependency>
+            <!-- Used to send cypher statements to our procedure. -->
+            <groupId>org.neo4j.driver</groupId>
+            <artifactId>neo4j-java-driver</artifactId>
+            <version>1.4.2</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.12</version>
+            <scope>test</scope>
+        </dependency>
+        
         <dependency>  
             <groupId>com.googlecode.json-simple</groupId>  
             <artifactId>json-simple</artifactId>  
@@ -59,51 +84,11 @@
             <version>2.2.5</version>
         </dependency>
 
-        <!-- Test Dependencies -->
         <dependency>
-            <!-- This is used for a utility that lets us start Neo4j with
-            a specific Procedure, which is nice for writing tests. -->
-            <groupId>org.neo4j.test</groupId>
-            <artifactId>neo4j-harness</artifactId>
-            <version>${neo4j.version}</version>
-            <scope>test</scope>
+            <groupId>org.eclipse.paho</groupId>
+            <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
+            <version>1.2.0</version>
         </dependency>
-
-        <dependency>
-            <!-- Used to send cypher statements to our procedure. -->
-            <groupId>org.neo4j.driver</groupId>
-            <artifactId>neo4j-java-driver</artifactId>
-            <version>1.4.2</version>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.12</version>
-            <scope>test</scope>
-        </dependency>
-<!--        
-        <dependency>
-            <groupId>org.quartz-scheduler</groupId>
-            <artifactId>quartz</artifactId>
-            <version>2.2.1</version>
-        </dependency>
-        <dependency>
-            <groupId>org.quartz-scheduler</groupId>
-            <artifactId>quartz-jobs</artifactId>
-            <version>2.2.1</version>
-        </dependency> -->
-
-
-
-
-    <dependency>
-        <groupId>org.eclipse.paho</groupId>
-        <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
-        <version>1.2.0</version>
-    </dependency>
-
 
     </dependencies>
 
@@ -138,11 +123,11 @@
         </plugins>
     </build>
     
-<repositories>
-    <repository>
-        <id>Eclipse Paho Repo</id>
-        <url>https://repo.eclipse.org/content/repositories/paho-releases/</url>
-    </repository>
-</repositories>
+    <repositories>
+        <repository>
+            <id>Eclipse Paho Repo</id>
+            <url>https://repo.eclipse.org/content/repositories/paho-releases/</url>
+        </repository>
+    </repositories>
 
 </project>
