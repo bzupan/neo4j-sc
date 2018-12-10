@@ -52,7 +52,7 @@ RETURN sc.rest.urlEncodeString('aaa.bbb@email.com {jsonString:"!"#$&/()"}') AS u
 
 
 ==== httpPostJson - function
-Run http/https json post and receive response from REST
+Run http/https json post and receive response from REST - based on Apache HttpComponents!
 
 - sc.rest.httpJsonPost(\"url string\", {json document}) - return json document
 - sc.rest.httpPostNode(\"url string\", neo4jNode) - return json document
@@ -224,6 +224,7 @@ RETURN sc.rest.httpPostRelationship("http://127.0.0.1/restTest", r) AS postRespo
 
 ==== Cypher Neo4j Java VM - functions/procedures
 Store cypher query into Neo4j Java VM and run query when needed
+
 - sc.cypher.addVm('name', 'cypher query', {cypher query parameters}) - add CYPHER Java VM calls
 - sc.cypher.listVm() - list all CYPHER java VM calls
 - sc.cypher.runProcedureVm(\"stringFunctionName\", {object:\"params\"} - run CYPHER from Java VM
@@ -518,29 +519,6 @@ MATCH (n:scTestNode)  RETURN sc.jsonExportNode(n) AS jsonExportNode;
 +ring","integer":123,"float":123.456}}"                                +
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ----
-
-==== jsonExportNode - function
-- sc.jsonExportNode(neo4jNode) - return json Neo4j Node string"
-
-====== Example
-[source,cypher]
-----
-MATCH (n:scTestNode) DETACH DELETE n;
-CREATE (n:scTestNode {string:"string", integer:123, boolean:true, float:123.456}) RETURN n;
-
-MATCH (n:scTestNode)  RETURN sc.jsonExportNode(n) AS jsonExportNode;
-----
-[source,cypher]
-----
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-+"jsonExportNode"                                                      +
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-+"{_id:83,_labels:[scTestNode],_properties:{"boolean":true,"string":"st+
-+ring","integer":123,"float":123.456}}"                                +
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-----
-
-
 
 ==== jsonExportRelationship - function
 - sc.jsonExportRelationship(neo4jRelationship) - return json Neo4j Relationship string"
