@@ -1,5 +1,6 @@
 package sc.mqtt;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
@@ -40,13 +41,12 @@ import org.neo4j.graphdb.Transaction;
 import org.neo4j.procedure.Mode;
 import org.neo4j.procedure.Procedure;
 import sc.MapResult;
+import sc.MapProcess;
 
 public class CypherMqtt {
 
-    //private static final List< CypherMqtt.CypherQueryObject> cypherMqttList = new ArrayList<CypherQuery.CypherQueryObject>();
-    private static final ArrayList<Map<String, Object>> cypherMqttList = new ArrayList<Map<String, Object>>();
-    private static final Map<String, Object> mqttBrokersMap = new HashMap<String, Object>();
-    
+    private static final MapProcess mqttBrokersMap = new MapProcess();
+
     @Context
     public Log log;
 
@@ -57,65 +57,60 @@ public class CypherMqtt {
     // list
     // ----------------------------------------------------------------------------------
     @UserFunction
-    @Description("RETURN sc.mqtt.listVm() - list all CYPHER java VM calls")
+    @Description("RETURN sc.mqtt.list() - list all CYPHER java VM calls")
     public List< Map<String, Object>> list() {
-        return cypherMqttList; //.map(CronJob::new);
+        return mqttBrokersMap.getListFromMapAllClean();
     }
 
     // ----------------------------------------------------------------------------------
     // add
     // ----------------------------------------------------------------------------------
     @UserFunction
-    @Description("RETURN sc.mqtt.addVm('name', 'cypher query', cypher query parameters') - add CYPHER Java VM calls")
+    @Description("RETURN sc.mqtt.add('mqttBrokerName', {brokerUrl:'tcp://iot.eclipse.org:1883' ,clientId:'123'  }) //- add CYPHER Java VM calls")
     public Map<String, Object> add(
             @Name("name") String name,
             @Name("mqtt") Map<String, Object> mqtt
     ) {
-        Map<String, Object> cypherQueryMap = getMapFromListtByKeyValue(cypherMqttList, "name", name);
-        //log.info(mapNode.toString()+ " " + mapNode.get("index"));
-        if (cypherQueryMap != null) {
-            log.info(cypherQueryMap.toString() + " update " + name);
-            cypherQueryMap.put("mqtt", mqtt);
-            //cypherQueryMap.put("parameters", name);
-        } else {
-            cypherQueryMap = new HashMap<String, Object>();
-            log.info(cypherQueryMap.toString() + " create " + name);
+        String brokerUrl = mqtt.get("brokerUrl").toString();
+        String clientId = name; //mqtt.get("clientId").toString();
 
-            cypherQueryMap.put("name", name);
-            cypherQueryMap.put("mqtt", mqtt);
+        MemoryPersistence persistence = new MemoryPersistence();
 
-            //cypherQueryMap.put("parameters", name);
-            cypherMqttList.add(cypherQueryMap);
+        Map<String, Object> mqttBrokerTmp = new HashMap<String, Object>();
 
-            String brokerUrl = mqtt.get("brokerUrl").toString();
-            String clientId = mqtt.get("clientId").toString();;
-            MemoryPersistence persistence = new MemoryPersistence();
-            String topic = mqtt.get("topic").toString();;
-            
+        try {
             MqttClientNeo mqttBrokerNeo4jClient = new MqttClientNeo(brokerUrl, clientId, persistence);
-            HashMap<String, Object> mqttBrokerTmp = new HashMap<String, Object>();
+            log.debug("sc.mqtt -  publish ok: " + name + " " + brokerUrl + " " + clientId);
             mqttBrokerTmp.put("name", name);
             mqttBrokerTmp.put("mqtt", mqtt);
+            mqttBrokerTmp.put("messageSendOk", 0);
+            mqttBrokerTmp.put("messageSendError", 0);
+            mqttBrokerTmp.put("messageSendErrorMessage", 0);
             mqttBrokerTmp.put("mqttBrokerNeo4jClient", mqttBrokerNeo4jClient);
-            mqttBrokersMap.put(name, mqttBrokerTmp);
-
+            mqttBrokersMap.addToMap(name, mqttBrokerTmp);
+            return mqttBrokersMap.getMapElementByNameClean(name);
+        } catch (Exception ex) {
+            log.error("sc.mqtt -  publish error: " + name + " " + brokerUrl + " " + clientId + " " + ex.toString());
+            return null;
         }
-        return cypherQueryMap;
+
     }
 
     // ----------------------------------------------------------------------------------
     // delete
     // ----------------------------------------------------------------------------------
     @UserFunction
-    @Description("RETURN sc.mqtt.deleteVm('name') - add CYPHER Java VM calls")
+    @Description("RETURN sc.mqtt.delete('mqttBrokerName') - add CYPHER Java VM calls")
     public Map<String, Object> delete(
             @Name("name") String name
     ) {
-        Map<String, Object> mapNode = getMapFromListtByKeyValue(cypherMqttList, "name", name);
-        //log.info(mapNode.toString()+ " " + mapNode.get("index"));
-        if (mapNode != null) {
-            log.info(mapNode.toString() + " remove " + mapNode.get("index"));
-            cypherMqttList.remove(mapNode);
+        Map<String, Object> mqttBroker = mqttBrokersMap.getMapElementByName(name);
+        MqttClientNeo mqttBrokerNeo4jClient = (MqttClientNeo) mqttBroker.get("mqttBrokerNeo4jClient");
+
+        if (!mqttBrokerNeo4jClient.equals(null)) {
+            mqttBrokerNeo4jClient.unsubscribe();
+            mqttBrokerNeo4jClient.disconnect();
+            mqttBrokersMap.removeFromMap(name);
         }
         return null;
     }
@@ -123,149 +118,53 @@ public class CypherMqtt {
     // ----------------------------------------------------------------------------------
     // run
     // ----------------------------------------------------------------------------------
-    /**
-     *
-     * ProcessMqttMessage printMessage = new ProcessMqttMessage();
-     * rectOne.listen(topic, printMessage);
-     *
-     */
     @Procedure(mode = Mode.WRITE)
-    @Description("CALL sc.mqtt.runVm(\"stringFunctionName\", {object:\"params\"} - run CYPHER from Java VM)")
+    @Description("CALL sc.mqtt.publish('mqttBrokerName', '/mqtt/topic/path','message') - run CYPHER from Java VM)")
     public Stream<MapResult> publish(
             @Name("name") String name,
-            @Name("query") String query,
-            @Name("cypherFunctionParameters") Map<String, Object> cypherFunctionParameters
+            @Name("topic") String toppic,
+            @Name("message") String message
     ) {
+        Map<String, Object> mqttBroker = mqttBrokersMap.getMapElementByName(name);
 
-        Map<String, Object> cypherQueryMap = getMapFromListtByKeyValue(cypherMqttList, "name", name);
-        //log.info(mapNode.toString()+ " " + mapNode.get("index"));
-        if (cypherQueryMap != null) {
-            log.info(cypherQueryMap.toString() + " update " + name);
-            // --- run cypher query string
-            String cypherFunctionQuery = cypherQueryMap.get("query").toString();
+        MqttClientNeo mqttBrokerNeo4jClient = (MqttClientNeo) mqttBroker.get("mqttBrokerNeo4jClient");
 
-            log.info("runCypherNode - cypherFunctionQuery : " + cypherFunctionQuery);
-
-            try (Transaction tx2 = db.beginTx()) {
-                Result dbResult = db.execute(cypherFunctionQuery, cypherFunctionParameters);
-                tx2.success();
-                return dbResult.stream().map(MapResult::new);
-            }
-
-        } else {
-            return null;
+        try {
+            mqttBrokerNeo4jClient.publish(toppic, message);
+            log.debug("sc.mqtt -  publish ok: " + name + " " + toppic + " " + message);
+            mqttBroker.put("messageSendOk", 1 + (int) mqttBroker.get("messageSendOk"));
+            //return "publish ok";
+        } catch (Exception ex) {
+            mqttBroker.put("messageSendError", 1 + (int) mqttBroker.get("messageSendError"));
+            mqttBroker.put("messageSendErrorMessage", "sc.mqtt -  publish error: " + name + " " + toppic + " " + message + " " + ex.toString());
+            log.error("sc.mqtt -  publish error: " + name + " " + toppic + " " + message + " " + ex.toString());
         }
+        return mqttBrokersMap.getListFromMapAllClean().stream().map(MapResult::new);
     }
 
     @Procedure(mode = Mode.WRITE)
-    @Description("CALL sc.mqtt.runVm(\"stringFunctionName\", {object:\"params\"} - run CYPHER from Java VM)")
+    @Description("CALL sc.mqtt.subscribe('mqttBrokerName', '/mqtt/topic/path','cypherQuery'} - run CYPHER from Java VM)")
     public Stream<MapResult> subscribe(
             @Name("name") String name,
-            @Name("query") String query,
-            @Name("cypherFunctionParameters") Map<String, Object> cypherFunctionParameters
+            @Name("topic") String toppic,
+            @Name("query") String query
     ) {
+        Map<String, Object> mqttBroker = mqttBrokersMap.getMapElementByName(name);
 
-        Map<String, Object> cypherQueryMap = getMapFromListtByKeyValue(cypherMqttList, "name", name);
-        //log.info(mapNode.toString()+ " " + mapNode.get("index"));
-        if (cypherQueryMap != null) {
-            log.info(cypherQueryMap.toString() + " update " + name);
-            // --- run cypher query string
-            String cypherFunctionQuery = cypherQueryMap.get("query").toString();
-
-            log.info("runCypherNode - cypherFunctionQuery : " + cypherFunctionQuery);
-
-            try (Transaction tx2 = db.beginTx()) {
-                Result dbResult = db.execute(cypherFunctionQuery, cypherFunctionParameters);
-                tx2.success();
-                return dbResult.stream().map(MapResult::new);
-            }
-
-        } else {
-            return null;
+        MqttClientNeo mqttBrokerNeo4jClient = (MqttClientNeo) mqttBroker.get("mqttBrokerNeo4jClient");
+        ProcessMqttMessage task = new ProcessMqttMessage();
+        try {
+            mqttBrokerNeo4jClient.listen(toppic, task);
+        } catch (MqttException ex) {
+            Logger.getLogger(CypherMqtt.class.getName()).log(Level.SEVERE, null, ex);
         }
+
+        return null;
     }
 
     // ----------------------------------------------------------------------------------
     // util
     // ----------------------------------------------------------------------------------
-    private static Map<String, Object> getMapFromListtByKeyValue(final ArrayList<Map<String, Object>> inputArray, String key, String value) {
-        Map<String, Object> cypherNodeTmp = null; //new HashMap<String, Object>();
-
-        for (int i = 0; i < inputArray.size(); ++i) {
-            System.out.println(key + " " + value);
-            Map<String, Object> arrElement = inputArray.get(i);
-            if (arrElement != null) {
-                if (arrElement.get(key) != null) {
-                    String currentKeyValue = arrElement.get(key).toString();
-                    //   arrElement
-                    //System.out.println(key + i);
-                    //System.out.println(inputArray.get(i).toString());
-                    System.out.println(" - " + currentKeyValue + " " + value);
-                    if (currentKeyValue.equals(value)) {
-                        System.out.println(" - -----------------------");
-                        cypherNodeTmp = arrElement;
-                        //cypherNodeTmp = new HashMap<String, Object>(arrElement);
-                        //cypherNodeTmp.put("index", i);
-                    } else {
-                        System.out.println(" - -");
-                    }
-                }
-            }
-
-//            Object arrElement = inputArray[i];
-//          if (inputArray[i] ===)
-        }
-        return cypherNodeTmp;
-
-    }
-
-    public class CypherQueryObject { // static
-
-        public final String name;
-        public String query;
-        //public Map<String, Object> parameters;
-
-        public CypherQueryObject(String cn, String cq) {
-            this.name = cn;
-            this.query = cq;
-            //this.parameters = {};
-        }
-
-        public CypherQueryObject(String cs) {
-            this.name = cs;
-            //   this.cronScheduler = new Scheduler();
-        }
-
-        public CypherQueryObject addCron() {
-            return this;
-        }
-
-        public CypherQueryObject getCron() {
-            return this;
-        }
-
-        public CypherQueryObject update(String cs, String cn, String cq, boolean ce) {
-            //this.cronString = cs;
-            //this.cronName = cn;
-            //this.cypherQuery = cq;
-            //this.cronEnabled = ce;
-
-            //this.cronScheduler.stop();
-            return this;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            return this == o || o instanceof CypherQueryObject && name.equals(((CypherQueryObject) o).name);
-        }
-
-        @Override
-        public int hashCode() {
-            return name.hashCode();
-        }
-
-    }
-
     /**
      * JSONUtils checkJson = new JSONUtils();
      * System.out.print(checkJson.jsonStringToMap(validJson));
@@ -298,7 +197,7 @@ public class CypherMqtt {
         public void run(Object message) {
             JSONUtils checkJson = new JSONUtils();
             System.out.println("Message: received " + message.toString());
-            System.out.print(checkJson.jsonStringToMap(message.toString()));
+            //System.out.print(checkJson.jsonStringToMap(message.toString()));
         }
     }
 
@@ -316,195 +215,80 @@ public class CypherMqtt {
      *
      * }
      */
-    public static class MqttClientNeo {
+    public class MqttClientNeo {
 
         int qos = 2;
-        MqttClient sampleClient;
+        public MqttClient sampleClient;
 
         // four constructors
-        public MqttClientNeo(String broker, String clientId, MemoryPersistence persistence) {
-            try {
-                sampleClient = new MqttClient(broker, clientId, persistence);
-                MqttConnectOptions connOpts = new MqttConnectOptions();
-                connOpts.setCleanSession(true);
-                System.out.println("Connecting to broker: " + broker);
-                sampleClient.connect(connOpts);
-                //  brokerInt = broker;
-            } catch (MqttException ex) {
-                Logger.getLogger(CypherMqtt.class.getName()).log(Level.SEVERE, null, ex);
-            }
+        public MqttClientNeo(String broker, String clientId, MemoryPersistence persistence) throws MqttException {
+            this.sampleClient = new MqttClient(broker, clientId, persistence);
+            MqttConnectOptions connOpts = new MqttConnectOptions();
+            connOpts.setCleanSession(true);
+            this.sampleClient.connect(connOpts);
+
+            // --- send connect message
+            String messageTmp = clientId + " connected to " + broker;
+            MqttMessage message = new MqttMessage(messageTmp.getBytes());
+            message.setQos(qos);
+            this.sampleClient.publish("system", message);
+            //System.out.println("sc.mqtt -  connect ok: " + clientId + " " + broker);
+
         }
 
-        private void publish(String topic, String content) {
+        private String publish(String topic, String content) throws MqttException {
             MqttMessage message = new MqttMessage(content.getBytes());
             message.setQos(qos);
+            String clientId = this.sampleClient.getClientId();
+            String broker = this.sampleClient.getServerURI();
 
-            System.out.println("Publishing message: " + content);
-            try {
-                sampleClient.publish(topic, message);
-            } catch (MqttException ex) {
-                Logger.getLogger(CypherMqtt.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            System.out.println("Message published");
+            this.sampleClient.publish(topic, message);
+            //System.out.println("sc.mqtt -  publish ok: " + clientId + " " + broker + " " + content);
+            return "publish ok";
+
         }
 
         private void unsubscribe() {
+            String clientId = this.sampleClient.getClientId();
+            String broker = this.sampleClient.getServerURI();
             try {
-                sampleClient.unsubscribe("#");
+                this.sampleClient.unsubscribe("#");
+                //System.out.println("sc.mqtt -  unsubscribe ok: " + clientId + " " + broker);
             } catch (MqttException ex) {
-                Logger.getLogger(CypherMqtt.class.getName()).log(Level.SEVERE, null, ex);
+                System.out.println("sc.mqtt -  unsubscribe error: " + clientId + " " + broker + " " + ex.toString());
             }
-            System.out.println("unsubscribe");
         }
 
         private void disconnect() {
+            String clientId = this.sampleClient.getClientId();
+            String broker = this.sampleClient.getServerURI();
             try {
-                sampleClient.disconnect();
+                this.sampleClient.disconnect();
+               // System.out.println("sc.mqtt -  disconnect ok: " + clientId + " " + broker);
             } catch (MqttException ex) {
-                Logger.getLogger(CypherMqtt.class.getName()).log(Level.SEVERE, null, ex);
+                System.out.println("sc.mqtt -  disconnect error: " + clientId + " " + broker + " " + ex.toString());
             }
-            System.out.println("unsubscribe");
+
         }
 
-        public void listen(String topic, ProcessMqttMessage task) {
-            try {
-                sampleClient.setCallback(new MqttCallback() {
-                    public void connectionLost(Throwable cause) {
-                    }
+        public void listen(String topic, ProcessMqttMessage task) throws MqttException {
+            String clientId = this.sampleClient.getClientId();
+            String broker = this.sampleClient.getServerURI();
+            this.sampleClient.setCallback(new MqttCallback() {
+                public void connectionLost(Throwable cause) {
+                }
 
-                    public void messageArrived(String topic, MqttMessage message) throws Exception {
-                        task.run(message.toString());
-                    }
+                public void messageArrived(String topic, MqttMessage message) throws Exception {
+                    task.run(message.toString());
+                }
 
-                    public void deliveryComplete(IMqttDeliveryToken token) {
-                    }
-                });
-                sampleClient.subscribe(topic);
-            } catch (MqttException e) {
-                e.printStackTrace();
-            }
+                public void deliveryComplete(IMqttDeliveryToken token) {
+                }
+            });
+            this.sampleClient.subscribe(topic);
+
         }
 
     }
 
 }
-
-
-/*
-    // ----------------------------------------------------------------------------------
-    // run
-    // ----------------------------------------------------------------------------------
-    @UserFunction
-    @Description("RETURN sc.mqtt.runFunctionVm(\"stringFunctionName\", {object:\"params\"} - run CYPHER from Java VM)")
-    public Object runFunctionVm(
-            @Name("name") String name,
-            @Name("params") Map<String, Object> params
-    ) {
-        // --- find node with cypher query from node name
-        String cypherFunctionQuery = "";
-
-        log.info("runCypherNode - cypherFunctionQuery : " + name);
-
-        Map<String, Object> cypherQueryMap = getMapFromListtByKeyValue(cypherMqttList, "name", name);
-        //log.info(mapNode.toString()+ " " + mapNode.get("index"));
-        if (cypherQueryMap != null) {
-            log.info(cypherQueryMap.toString() + " update " + name);
-            // --- run cypher query string
-            cypherFunctionQuery = cypherQueryMap.get("query").toString();
-            Map<String, Object> cypherResult = new HashMap<String, Object>();
-            try (Transaction tx2 = db.beginTx()) {
-                Result dbResult = db.execute(cypherFunctionQuery, params);
-                log.info("runCypherNode - cypher query: " + cypherFunctionQuery + ", " + params);
-
-                // --- ger first row
-                Map<String, Object> row = dbResult.next();
-                for (Entry<String, Object> column : row.entrySet()) {
-                    log.info("header" + column.getKey());
-                    log.info("data" + column.getValue().toString());
-                    List<Object> data = new ArrayList<Object>();
-                    data.add(column.getValue());
-                    cypherResult.put(column.getKey(), data);
-                }
-
-                // --- process rest of the rows
-                while (dbResult.hasNext()) {
-                    Map<String, Object> rowNext = dbResult.next();
-                    for (Entry<String, Object> column : rowNext.entrySet()) {
-                        log.info("header" + column.getKey().toString());
-                        log.info("data" + column.getValue().toString());
-                        List<Object> data = new ArrayList<Object>();
-                        data = (List<Object>) cypherResult.get(column.getKey());
-                        data.add(column.getValue());
-                        cypherResult.put(column.getKey(), data);
-                    }
-                }
-                tx2.success();
-                return cypherResult;
-            }
-        } else {
-            return null;
-        }
-
-    }
-
-    // ----------------------------------------------------------------------------------
-    // run function
-    // ----------------------------------------------------------------------------------
-    @UserFunction
-    @Description("RETURN sc.mqtt.runCypherNode(\"stringFunctionName\", {object:\"params\"} - run CYPHER from Neo4j DB)")
-    public Object runFunctionDb(
-            @Name("cypherFunctionName") String cypherFunctionName,
-            @Name("cypherFunctionParameters") Map<String, Object> cypherFunctionParameters
-    ) {
-        // --- find node with cypher query from node name
-        String cypherQueryString = "MATCH (n:CypherRunMqtt) WHERE n.name=\"" + cypherFunctionName + "\" RETURN n.query";
-
-        log.info("runCypherNode - cypherFunctionQuery : " + cypherQueryString);
-
-        // --- get cypher query string
-        String cypherFunctionQuery = "null";
-        try (Transaction tx = db.beginTx()) {
-            Result result = db.execute(cypherQueryString);
-
-            // --- some debuging
-            String column = result.columns().get(0);
-            Map<String, Object> row1 = result.next();
-            cypherFunctionQuery = row1.get(column).toString();
-
-            
-            tx.success();
-        }
-
-        // --- run cypher query string
-        Map<String, Object> cypherResult = new HashMap<String, Object>();
-        try (Transaction tx2 = db.beginTx()) {
-            Result dbResult = db.execute(cypherFunctionQuery, cypherFunctionParameters);
-            log.info("runCypherNode - cypher query: " + cypherFunctionQuery + ", " + cypherFunctionParameters);
-
-            // --- ger first row
-            Map<String, Object> row = dbResult.next();
-            for (Entry<String, Object> column : row.entrySet()) {
-                log.info("header" + column.getKey());
-                log.info("data" + column.getValue().toString());
-                List<Object> data = new ArrayList<Object>();
-                data.add(column.getValue());
-                cypherResult.put(column.getKey(), data);
-            }
-
-            // --- process rest of the rows
-            while (dbResult.hasNext()) {
-                Map<String, Object> rowNext = dbResult.next();
-                for (Entry<String, Object> column : rowNext.entrySet()) {
-                    log.info("header" + column.getKey().toString());
-                    log.info("data" + column.getValue().toString());
-                    List<Object> data = new ArrayList<Object>();
-                    data = (List<Object>) cypherResult.get(column.getKey());
-                    data.add(column.getValue());
-                    cypherResult.put(column.getKey(), data);
-                }
-            }
-            tx2.success();
-            return cypherResult;
-        }
-    }
- */
