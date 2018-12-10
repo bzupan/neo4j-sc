@@ -46,6 +46,8 @@ import sc.MapProcess;
 public class CypherMqtt {
 
     private static final MapProcess mqttBrokersMap = new MapProcess();
+    private static final String messagePublishDefaults = "{messageFormat: 'string'}";
+    private static final String messageSubscribeDefaults = "{messageFormat: 'string'}";
 
     @Context
     public Log log;
@@ -59,6 +61,7 @@ public class CypherMqtt {
     @UserFunction
     @Description("RETURN sc.mqtt.list() - list all CYPHER java VM calls")
     public List< Map<String, Object>> list() {
+        log.debug("sc.mqtt.list: " + mqttBrokersMap.getListFromMapAllClean().toString());
         return mqttBrokersMap.getListFromMapAllClean();
     }
 
@@ -80,17 +83,22 @@ public class CypherMqtt {
 
         try {
             MqttClientNeo mqttBrokerNeo4jClient = new MqttClientNeo(brokerUrl, clientId, persistence);
-            log.debug("sc.mqtt -  publish ok: " + name + " " + brokerUrl + " " + clientId);
+            log.debug("sc.mqtt -  connect ok: " + name + " " + brokerUrl + " " + clientId);
             mqttBrokerTmp.put("name", name);
             mqttBrokerTmp.put("mqtt", mqtt);
             mqttBrokerTmp.put("messageSendOk", 0);
             mqttBrokerTmp.put("messageSendError", 0);
             mqttBrokerTmp.put("messageSendErrorMessage", 0);
+            mqttBrokerTmp.put("messageSubscribeOk", 0);
+            mqttBrokerTmp.put("messageSubscribeError", 0);
+            mqttBrokerTmp.put("messageSubscribeErrorMessage", 0);
             mqttBrokerTmp.put("mqttBrokerNeo4jClient", mqttBrokerNeo4jClient);
+            mqttBrokerTmp.put("publishList", "");
+            mqttBrokerTmp.put("subscribeList", "");
             mqttBrokersMap.addToMap(name, mqttBrokerTmp);
             return mqttBrokersMap.getMapElementByNameClean(name);
         } catch (Exception ex) {
-            log.error("sc.mqtt -  publish error: " + name + " " + brokerUrl + " " + clientId + " " + ex.toString());
+            log.error("sc.mqtt -  connect error: " + name + " " + brokerUrl + " " + clientId + " " + ex.toString());
             return null;
         }
 
@@ -112,6 +120,7 @@ public class CypherMqtt {
             mqttBrokerNeo4jClient.disconnect();
             mqttBrokersMap.removeFromMap(name);
         }
+        log.debug("sc.mqtt -  unsubscribe delete: " + name + " " + name);
         return null;
     }
 
@@ -123,40 +132,57 @@ public class CypherMqtt {
     public Stream<MapResult> publish(
             @Name("name") String name,
             @Name("topic") String toppic,
-            @Name("message") String message
+            @Name("message") Object message,
+            @Name(value = "messagePublishOptions", defaultValue = messagePublishDefaults) Map<String, Object> messagePublishOptions
     ) {
         Map<String, Object> mqttBroker = mqttBrokersMap.getMapElementByName(name);
 
         MqttClientNeo mqttBrokerNeo4jClient = (MqttClientNeo) mqttBroker.get("mqttBrokerNeo4jClient");
-
+        String mqttMesageString = "";
         try {
-            mqttBrokerNeo4jClient.publish(toppic, message);
+
+            if (message instanceof String) {
+                mqttMesageString = (String) message;
+            } else {
+                ObjectMapper mapper = new ObjectMapper();
+                mqttMesageString = mapper.writeValueAsString(message).toString();
+            }
+            mqttBrokerNeo4jClient.publish(toppic, mqttMesageString);
             log.debug("sc.mqtt -  publish ok: " + name + " " + toppic + " " + message);
             mqttBroker.put("messageSendOk", 1 + (int) mqttBroker.get("messageSendOk"));
+
             //return "publish ok";
         } catch (Exception ex) {
             mqttBroker.put("messageSendError", 1 + (int) mqttBroker.get("messageSendError"));
-            mqttBroker.put("messageSendErrorMessage", "sc.mqtt -  publish error: " + name + " " + toppic + " " + message + " " + ex.toString());
-            log.error("sc.mqtt -  publish error: " + name + " " + toppic + " " + message + " " + ex.toString());
+            mqttBroker.put("messageSendErrorMessage", "sc.mqtt -  publish error: " + name + " " + toppic + " " + mqttMesageString + " " + ex.toString());
+            log.error("sc.mqtt -  publish error: " + name + " " + toppic + " " + mqttMesageString + " " + ex.toString());
         }
         return mqttBrokersMap.getListFromMapAllClean().stream().map(MapResult::new);
     }
 
     @Procedure(mode = Mode.WRITE)
-    @Description("CALL sc.mqtt.subscribe('mqttBrokerName', '/mqtt/topic/path','cypherQuery'} - run CYPHER from Java VM)")
+    @Description("CALL sc.mqtt.subscribe('mqttBrokerName', '/mqtt/topic/path','cypherQuery', )- run CYPHER from Java VM)")
     public Stream<MapResult> subscribe(
             @Name("name") String name,
             @Name("topic") String toppic,
-            @Name("query") String query
+            @Name("query") String query,
+            @Name(value = "subscribeOptions", defaultValue = messageSubscribeDefaults) Map<String, Object> subscribeOptions
     ) {
         Map<String, Object> mqttBroker = mqttBrokersMap.getMapElementByName(name);
 
         MqttClientNeo mqttBrokerNeo4jClient = (MqttClientNeo) mqttBroker.get("mqttBrokerNeo4jClient");
         ProcessMqttMessage task = new ProcessMqttMessage();
         try {
-            mqttBrokerNeo4jClient.listen(toppic, task);
-        } catch (MqttException ex) {
-            Logger.getLogger(CypherMqtt.class.getName()).log(Level.SEVERE, null, ex);
+            mqttBroker.put("publishList", mqttBroker.get("publishList").toString() + " " + name + " " + toppic + " " + query  );
+            mqttBrokerNeo4jClient.listen(toppic, query, task);
+
+            mqttBroker.put("messageSubscribeOk", 1 + (int) mqttBroker.get("messageSubscribeOk"));
+           
+        } catch (Exception ex) {
+            log.error("");
+            mqttBroker.put("messageSubscribeError", 1 + (int) mqttBroker.get("messageSubscribeError"));
+            mqttBroker.put("messageSubscribeErrorMessage", "sc.mqtt -  subscribe error: " + name + " " + toppic + " " + query + " " + ex.toString());
+            //   mqttBroker.put("messageSubscribeErrorMessage", 0);  
         }
 
         return null;
@@ -189,7 +215,7 @@ public class CypherMqtt {
         }
     }
 
-    public static class ProcessMqttMessage {
+    public class ProcessMqttMessage {
 
         public ProcessMqttMessage() {
         }
@@ -197,7 +223,15 @@ public class CypherMqtt {
         public void run(Object message) {
             JSONUtils checkJson = new JSONUtils();
             System.out.println("Message: received " + message.toString());
+
             //System.out.print(checkJson.jsonStringToMap(message.toString()));
+        }
+
+        public void run(String cypherQuery, String message) {
+
+            JSONUtils checkJson = new JSONUtils();
+            System.out.println("Message: received " + cypherQuery + " " +message.toString());
+            db.execute(cypherQuery, (Map<String, Object>) checkJson.jsonStringToMap(message)); //System.out.print(checkJson.jsonStringToMap(message.toString()));
         }
     }
 
@@ -264,22 +298,22 @@ public class CypherMqtt {
             String broker = this.sampleClient.getServerURI();
             try {
                 this.sampleClient.disconnect();
-               // System.out.println("sc.mqtt -  disconnect ok: " + clientId + " " + broker);
+                // System.out.println("sc.mqtt -  disconnect ok: " + clientId + " " + broker);
             } catch (MqttException ex) {
                 System.out.println("sc.mqtt -  disconnect error: " + clientId + " " + broker + " " + ex.toString());
             }
 
         }
 
-        public void listen(String topic, ProcessMqttMessage task) throws MqttException {
+        public void listen(String topic, String query, ProcessMqttMessage task) throws MqttException {
             String clientId = this.sampleClient.getClientId();
             String broker = this.sampleClient.getServerURI();
             this.sampleClient.setCallback(new MqttCallback() {
                 public void connectionLost(Throwable cause) {
                 }
 
-                public void messageArrived(String topic, MqttMessage message) throws Exception {
-                    task.run(message.toString());
+                public void messageArrived(String topic, MqttMessage message) {
+                    task.run(query, message.toString());
                 }
 
                 public void deliveryComplete(IMqttDeliveryToken token) {
