@@ -14,8 +14,6 @@
         <configuration>
           <source>1.8</source>
           <target>1.8</target>
-          <skipTests>true</skipTests>
-          <maven.test.skip>true</maven.test.skip>
         </configuration>
       </plugin>
       <plugin>

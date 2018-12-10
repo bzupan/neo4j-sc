@@ -34,12 +34,13 @@ import it.sauronsoftware.cron4j.TaskCollector;
 import it.sauronsoftware.cron4j.TaskTable;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
+import sc.MapProcess;
+import sc.MapResult;
 
 public class CypherCron {
 
-    private static final List<CronJob> cronList = new ArrayList<CronJob>();
-
-    private static final CronScheduler cs = new CronScheduler();
+    private static final MapProcess cronMap = new MapProcess();
+    private static final String cronDefaults = "{}";
 
     @Context
     public GraphDatabaseService db;
@@ -54,47 +55,53 @@ public class CypherCron {
     // list
     // ----------------------------------------------------------------------------------
     //  @UserFunction
-    @Procedure()
-    @Description("call sc.cypher.listCron() - list all jobs")
-    public Stream<CronJob> listCron() {
-        return cronList.stream(); //.map(CronJob::new);
+    @UserFunction
+    @Description("return sc.cypher.listCron() - list all jobs")
+    public List< Map<String, Object>> listCron() {
+        return cronMap.getListFromMapAllClean(); //.map(CronJob::new);
     }
 
     // ----------------------------------------------------------------------------------
     // deleteCron
     // ----------------------------------------------------------------------------------
-    @Procedure()
+    @UserFunction
     @Description("call sc.cypher.deleteCron('cronName') - list all jobs")
-    public Stream<CronJob> deleteCron(@Name("name") String name) {
-        CronJob info = new CronJob(name);
-        Object future = cronList.remove(info);
-
-        if (future != null) {
-            //   future.cancel(true);
-            //  return Stream.of(info.update(future));
-        }
-        return Stream.empty();
+    public Map<String, Object> deleteCron(@Name("name") String name) {
+        Map<String, Object> cronObjectTmp = cronMap.getMapElementByName(name);
+        CronScheduler cronScheduler = (CronScheduler) cronObjectTmp.get("cronSchedule");
+        cronScheduler.stop(name);
+        cronMap.removeFromMap(name);
+        return null;
     }
 
     // ----------------------------------------------------------------------------------
     // addCron
     // ----------------------------------------------------------------------------------
     @Procedure(mode = Mode.WRITE)
-    @Description("CALL sc.cypher.addCron('cronName','MATCH (n) RETURN n','* * * * *', {})   submit a repeatedly-called background statement. Fourth parameter 'config' is optional and can contain 'params' entry for nested statement.")
-    public Stream<CronJob> addCron(
+    @Description("CALL sc.cypher.addCron('cronName','* * * * *','MATCH (n) RETURN n', {})   submit a repeatedly-called background statement. Fourth parameter 'config' is optional and can contain 'params' entry for nested statement.")
+    public Stream<MapResult> addCron(
             @Name("name") String name,
             @Name("cron") String cron,
             @Name("cypherQueryString") String cypherQueryString,
-            @Name(value = "cypherQueryParams", defaultValue = "{}") Map<String, Object> cypherQueryParams) {
+            @Name(value = "cypherQueryParams", defaultValue = "{}") Map<String, Object> cypherQueryParams,
+            @Name(value = "cronParams", defaultValue = cronDefaults) Map<String, Object> cronParams) {
 
-//        Map<String, Object> params = (Map) config.getOrDefault("params", Collections.emptyMap());
-//        JobInfo info = schedule(name, () -> Iterators.count(db.execute(statement, params)), 0, rate);
-        // cronMap = new HashMap<>();
-        CronJob cronObject = new CronJob(cron, name, cypherQueryString, cypherQueryParams);
-        cronList.add(cronObject);
         Task cronTask = new Task(name, cypherQueryString, cypherQueryParams);
-        cs.start(name, cron, 0, cronTask);
-        return Stream.of(cronObject);
+        CronScheduler cronSchedule = new CronScheduler();
+        cronSchedule.start(name, cron, 0, cronTask);
+
+        Map<String, Object> cronObjectTmp = new HashMap<String, Object>();
+        cronObjectTmp.put("name", name);
+        cronObjectTmp.put("cronString", cron);
+        cronObjectTmp.put("cronRunOk", 0);
+        cronObjectTmp.put("cronRunError", 0);
+        cronObjectTmp.put("cypherQuery", cypherQueryString);
+        cronObjectTmp.put("cypherParams", cypherQueryParams);
+        cronObjectTmp.put("cronTask", cronTask);
+        cronObjectTmp.put("cronSchedule", cronSchedule);
+        cronMap.addToMap(name, cronObjectTmp);
+
+        return Stream.of(cronMap.getMapElementByNameClean(name)).map(MapResult::new);
 
     }
 
@@ -103,64 +110,17 @@ public class CypherCron {
     // ----------------------------------------------------------------------------------
     @Procedure()
     @Description("call sc.cypher.listCron() - list all jobs")
-    public Stream<CronJob> runCron() {
-        //Task cronTask = new Task(name, cypherQueryString, cypherQueryParams);
-        return cronList.stream(); //.map(CronJob::new);
+    public Stream<MapResult> runCron(
+            @Name("name") String name
+    ) {
+        Map<String, Object> cronObjectTmp = cronMap.getMapElementByName(name);
+        CronScheduler cronScheduler = (CronScheduler) cronObjectTmp.get("cronSchedule");
+        return null;
     }
 
     // ----------------------------------------------------------------------------------
     // util
     // ----------------------------------------------------------------------------------
-    public class CronJob { // static
-
-        public String cronString;
-        public final String cronName;
-        public String cypherQuery;
-        public Map<String, Object> cypherParams;
-
-        // four constructors
-        public CronJob(String cs, String cn, String cq, Map<String, Object> ce) {
-            this.cronString = cs;
-            this.cronName = cn;
-            this.cypherQuery = cq;
-            this.cypherParams = ce;
-        }
-
-        public CronJob(String cs) {
-            this.cronName = cs;
-            //   this.cronScheduler = new Scheduler();
-        }
-
-        public CronJob addCron() {
-            return this;
-        }
-
-        public CronJob getCron() {
-            return this;
-        }
-
-        public CronJob update(String cs, String cn, String cq, Map<String, Object> ce) {
-            this.cronString = cs;
-            //this.cronName = cn;
-            this.cypherQuery = cq;
-            this.cypherParams = ce;
-
-            //this.cronScheduler.stop();
-            return this;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            return this == o || o instanceof CronJob && cronName.equals(((CronJob) o).cronName);
-        }
-
-        @Override
-        public int hashCode() {
-            return cronName.hashCode();
-        }
-
-    }
-
     /**
      * public static void main(String[] args) { CronScheduler cs = new
      * CronScheduler(); cs.toString(); Task aa = new Task("aa"); Task bb = new
@@ -171,21 +131,20 @@ public class CypherCron {
      *
      * }
      */
-    public static class CronScheduler {
+    public class CronScheduler {
 
         // --- Cron scheduler map
-        private Map<String, Scheduler> cronJobMap;
+        //private Map<String, Scheduler> cronJobMap;
+        Scheduler cronScheduler;
 
         // --- Cron scheduler initialization
         public CronScheduler() {
-            cronJobMap = new HashMap<String, Scheduler>();
-            // log.info(" CronScheduler inittialization");
+            cronScheduler = new Scheduler();
         }
 
         // --- Cron scheduler start
-        public CronScheduler start(String cronName, String cronSchedule, int taskRunDelay, Task cronTask) {
+        public Scheduler start(String cronName, String cronSchedule, int taskRunDelay, Task cronTask) {
             // log.info(" CronScheduler start. " + cronName + " " + cronSchedule + " " + taskRunDelay);
-            Scheduler cronScheduler = new Scheduler();
             cronScheduler.schedule(cronSchedule, new Runnable() {
                 // --- run task
                 public void run() {
@@ -201,26 +160,23 @@ public class CypherCron {
                     }
                 }
             });
-            cronJobMap.put(cronName, cronScheduler);
+            //cronJobMap.put(cronName, cronScheduler);
             cronScheduler.start();
-            return null;
+            return cronScheduler;
         }
 
         // --- Cron scheduler stop
-        public CronScheduler stop(String cronName) {
-            // log.info(" CronScheduler stop ..." + cronName);
-            Scheduler cronScheduler = cronJobMap.get(cronName);
-            cronJobMap.remove(cronName);
-            return null;
+        public void stop(String cronName) {
+            log.info(" CronScheduler stop ..." + cronName);
+            cronScheduler.stop();
+            cronScheduler.deschedule(cronScheduler.getTask(cronName));
+
         }
 
         // --- Cron scheduler stop
-        public CronScheduler run(String cronName) {
-            // log.info(" CronScheduler stop ..." + cronName);
-            Scheduler cronScheduler = cronJobMap.get(cronName);
-            cronScheduler.launch(cronScheduler.getTask(cronName));
-            // cronJobMap.remove(cronName);
-            return null;
+        public void run(String cronName) {
+            log.info(" CronScheduler run ..." + cronName);
+            //return cronScheduler.launch(cronScheduler.getTask(cronName));
         }
     }
 
@@ -239,11 +195,16 @@ public class CypherCron {
 
         public void run() {
             log.info("Task run " + taskName);
+            Map<String, Object> cronObjectTmp = cronMap.getMapElementByName(taskName);
             try (Transaction tx = db.beginTx()) {
                 Result dbResult = db.execute(cypherQueryString, cypherQueryParams);
                 log.info("Task run  dbResult" + dbResult.resultAsString());
+
+                cronObjectTmp.put("cronRunOk", 1 + (int) cronObjectTmp.get("cronRunOk"));
                 tx.success();
             } catch (Exception ex) {
+                cronObjectTmp.put("cronRunError", 1 + (int) cronObjectTmp.get("cronRunError"));
+                cronObjectTmp.put("cronRunErrorMessage", "Task run error" + taskName + ex.toString());
                 log.info("Task run error" + taskName + ex.toString());
             }
         }

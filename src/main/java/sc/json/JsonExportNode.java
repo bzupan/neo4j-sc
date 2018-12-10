@@ -1,4 +1,4 @@
-package sc;
+package sc.json;
 
 import java.util.List;
 

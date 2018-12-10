@@ -173,16 +173,16 @@ public class CypherMqtt {
         MqttClientNeo mqttBrokerNeo4jClient = (MqttClientNeo) mqttBroker.get("mqttBrokerNeo4jClient");
         ProcessMqttMessage task = new ProcessMqttMessage();
         try {
-            mqttBroker.put("publishList", mqttBroker.get("publishList").toString() + " " + name + " " + toppic + " " + query  );
+            mqttBroker.put("subscribeList", mqttBroker.get("subscribeList").toString() + " " + name + " " + toppic + " " + query);
             mqttBrokerNeo4jClient.listen(toppic, query, task);
 
             mqttBroker.put("messageSubscribeOk", 1 + (int) mqttBroker.get("messageSubscribeOk"));
-           
+
         } catch (Exception ex) {
             log.error("");
             mqttBroker.put("messageSubscribeError", 1 + (int) mqttBroker.get("messageSubscribeError"));
             mqttBroker.put("messageSubscribeErrorMessage", "sc.mqtt -  subscribe error: " + name + " " + toppic + " " + query + " " + ex.toString());
-            //   mqttBroker.put("messageSubscribeErrorMessage", 0);  
+
         }
 
         return null;
@@ -230,8 +230,15 @@ public class CypherMqtt {
         public void run(String cypherQuery, String message) {
 
             JSONUtils checkJson = new JSONUtils();
-            System.out.println("Message: received " + cypherQuery + " " +message.toString());
-            db.execute(cypherQuery, (Map<String, Object>) checkJson.jsonStringToMap(message)); //System.out.print(checkJson.jsonStringToMap(message.toString()));
+            System.out.println("Message: received " + cypherQuery + " " + message.toString() + (Map<String, Object>) checkJson.jsonStringToMap(message));
+
+            try (Transaction tx = db.beginTx()) {
+                Result dbResult = db.execute(cypherQuery, (Map<String, Object>) checkJson.jsonStringToMap(message));
+                log.info("runCypherNode - cypherFunctionQuery : " + " " + dbResult.resultAsString());
+                tx.success();
+            } catch (Exception ex) {
+                log.error("runCypherNode - cypherFunctionQuery : " + " ");
+            }
         }
     }
 
@@ -310,13 +317,16 @@ public class CypherMqtt {
             String broker = this.sampleClient.getServerURI();
             this.sampleClient.setCallback(new MqttCallback() {
                 public void connectionLost(Throwable cause) {
+                    System.out.println("connectionLost");
                 }
 
                 public void messageArrived(String topic, MqttMessage message) {
+                    System.out.println("connectionLost");
                     task.run(query, message.toString());
                 }
 
                 public void deliveryComplete(IMqttDeliveryToken token) {
+                    System.out.println("deliveryComplete");
                 }
             });
             this.sampleClient.subscribe(topic);
