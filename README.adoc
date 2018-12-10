@@ -1,7 +1,7 @@
 == User Defined sc Neo4j Functions - Procedures
 
 
-==== Setup
+=== Setup
 
 
 - edit neo4j.conf and add  sc.*  e.g.: 
@@ -31,7 +31,7 @@ CALL dbms.functions()
 CALL dbms.procedures()
 ----
 
-
+=== http post
 ==== urlEncodeString - function
 - sc.rest.urlEncodeString('string') - return url encoded string
 
@@ -51,10 +51,7 @@ RETURN sc.rest.urlEncodeString('aaa.bbb@email.com {jsonString:"!"#$&/()"}') AS u
 ----
 
 
-
-
-
-==== httpPostJson  httpPostNode - function
+==== httpPostJson - function
 Run http/https json post and receive response from REST
 
 - sc.rest.httpJsonPost(\"url string\", {json document}) - return json document
@@ -170,7 +167,7 @@ RETURN sc.rest.httpPostJson("https://127.0.0.1:8443/restTest", {name:123},{enabl
 +++++++++++++++++++++++++
 ----
 
-httpPostNode
+==== httpPostNode - function
 [source,cypher]
 ----
 MATCH (n:scTestNode) DETACH DELETE n;
@@ -197,7 +194,7 @@ AS postResponseNode
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ----
 
-httpPostRelationship
+==== httpPostRelationship - function
 [source,cypher]
 ----
 MATCH ()-[r:scTesttRelationship]->() DELETE r
@@ -223,9 +220,9 @@ RETURN sc.rest.httpPostRelationship("http://127.0.0.1/restTest", r) AS postRespo
 
 
 
+=== Cypher
 
-
-==== Cypher Java VM - functions/procedures
+==== Cypher Neo4j Java VM - functions/procedures
 Store cypher query into Neo4j Java VM and run query when needed
 - sc.cypher.addVm('name', 'cypher query', {cypher query parameters}) - add CYPHER Java VM calls
 - sc.cypher.listVm() - list all CYPHER java VM calls
@@ -389,11 +386,11 @@ CALL sc.cypher.runVm("findPerson", {name:"abc"})
 
 
 
-====  EVAL JavaScript Neo4j Java VM - function
+===  EVAL JavaScript Neo4j Java VM - function
 Run JavaScript via java Nashorn JavaScript engine for the JVM and receive JavaScript response
 
-- sc.javascript.run("javascript script string", jsParams)"  - javascript response          
 
+- sc.javascript.run("javascript script string", jsParams)"  - javascript response          
 - sc.javascript.addDb('name', 'cypher query', {cypher query parameters}) - add JavaScript Java VM calls
 - sc.javascript.listDb() - list all JavaScript java VM calls
 - sc.javascript.runProcedureDb(\"stringFunctionName\", {object:\"params\"} - run JavaScript from Java VM
@@ -499,24 +496,7 @@ RETURN sc.javascript.listVm()
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+=== Export to JSON
 ==== jsonExportNode - function
 - sc.jsonExportNode(neo4jNode) - return json Neo4j Node string"
 
