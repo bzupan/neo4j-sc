@@ -17,6 +17,8 @@ import com.google.gson.Gson;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.net.ssl.SSLContext;
 
@@ -51,7 +53,7 @@ public class HttpPostClient {
 
     @UserFunction
     @Description(
-            "// - return json post response\n"
+            "// - return json post response "
             + "RETURN sc.rest.httpPostJson(\"https://127.0.0.1:8443/restTest\", {jsonObject:123},{enableInsecureHttps: false, enableErrorMessage:false}) AS postResponse "
     )
     public Map<String, Object> httpPostJson(
@@ -59,21 +61,34 @@ public class HttpPostClient {
             @Name("node") Object inputObject,
             @Name(value = "httpClientOptions", defaultValue = httpClientProperties) Map<String, Object> httpClientOptions
     ) {
-        log.debug("sc.rest.httpPostJson - input: " + url.toString() + " " + inputObject.toString() + " " + httpClientOptions.toString());
-        Map<String, Object> reaponse = http.post(url, inputObject, httpClientOptions);
-        log.debug("sc.rest.httpPostJson - reaponse: " + url.toString() + " " + inputObject.toString() + " " + httpClientOptions.toString());
-        return reaponse;
+
+        Map<String, Object> response;
+        try {
+            response = http.post(url, inputObject, httpClientOptions);
+            log.debug("sc.rest.httpPostRelationship - input: " + url.toString() + " " + inputObject.toString() + " " + httpClientOptions.toString());
+        } catch (Exception ex) {
+            Logger.getLogger(HttpPostClient.class.getName()).log(Level.SEVERE, null, ex);
+
+            if (httpClientOptions.get("enableErrorMessage").equals(true)) {
+                response = new HashMap();
+                response.put("error", "http post error: " + ex.toString());
+            } else {
+                response = null;
+            }
+            log.error("sc.rest.httpPostRelationship - input: " + url.toString() + " " + inputObject.toString() + " " + httpClientOptions.toString());
+        }
+        return response;
     }
 
     @UserFunction
     @Description(
-            "// - return node post response\n"
-            + "MATCH (n:scTestNode) WHERE ID(n)=434\n"
-            + "RETURN sc.rest.httpPostNode(\n"
-            + "\"http://127.0.0.1/restTest\", \n"
-            + "n,\n"
-            + "{enableInsecureHttps: false, enableErrorMessage:false}\n"
-            + ") \n"
+            "// - return node post response "
+            + "MATCH (n:scTestNode) WHERE ID(n)=434 "
+            + "RETURN sc.rest.httpPostNode( "
+            + "\"http://127.0.0.1/restTest\",  "
+            + "n, "
+            + "{enableInsecureHttps: false, enableErrorMessage:false} "
+            + ")  n"
             + "AS postResponseNode"
     )
     public Map<String, Object> httpPostNode(
@@ -81,32 +96,57 @@ public class HttpPostClient {
             @Name("node") Node node,
             @Name(value = "httpClientOptions", defaultValue = httpClientProperties) Map<String, Object> httpClientOptions
     ) {
-        log.debug("sc.rest.httpPostNode - input: " + url.toString() + " " + node.toString() + " " + httpClientOptions.toString());
-        Map<String, Object> reaponse = http.post(url, node.getAllProperties(), httpClientOptions);
-        log.debug("sc.rest.httpPostNode - reaponse: " + url.toString() + " " + node.toString() + " " + httpClientOptions.toString());
-        return reaponse;
+
+        Map<String, Object> response;
+        try {
+            response = http.post(url, node.getAllProperties(), httpClientOptions);
+            log.debug("sc.rest.httpPostRelationship - input: " + url.toString() + " " + node.toString() + " " + httpClientOptions.toString());
+        } catch (Exception ex) {
+            Logger.getLogger(HttpPostClient.class.getName()).log(Level.SEVERE, null, ex);
+
+            if (httpClientOptions.get("enableErrorMessage").equals(true)) {
+                response = new HashMap();
+                response.put("error", "http post error: " + ex.toString());
+            } else {
+                response = null;
+            }
+            log.error("sc.rest.httpPostRelationship - input: " + url.toString() + " " + node.toString() + " " + httpClientOptions.toString());
+        }
+        return response;
+
     }
 
     @UserFunction
-    @Description("\n" +
-"            \"// - return node post response\\n\"\n" +
-"            + \"MATCH ()-[l]->()HERE ID(l)=434\\n\"\n" +
-"            + \"RETURN sc.rest.httpPostNode(\\n\"\n" +
-"            + \"\\\"http://127.0.0.1/restTest\\\", \\n\"\n" +
-"            + \"n,\\n\"\n" +
-"            + \"{enableInsecureHttps: false, enableErrorMessage:false}\\n\"\n" +
-"            + \") \\n\"\n" +
-"            + \"AS postResponseNode\"\n" +
-"    ")
+    @Description(
+            "// - return node post response "
+            + "MATCH MATCH ()-[l]->()HERE ID(l)=434 "
+            + "RETURN sc.rest.httpClientOptions( "
+            + "\"http://127.0.0.1/restTest\",  "
+            + "l "
+            + "{enableInsecureHttps: false, enableErrorMessage:false} "
+            + ")  n"
+            + "AS postResponseNode")
     public Map<String, Object> httpPostRelationship(
             @Name("url") String url,
             @Name("relationship") Relationship relationship,
             @Name(value = "httpClientOptions", defaultValue = httpClientProperties) Map<String, Object> httpClientOptions
     ) {
-        log.debug("sc.rest.httpPostRelationship - input: " + url.toString() + " " + relationship.toString() + " " + httpClientOptions.toString());
-        Map<String, Object> reaponse = http.post(url, relationship.getAllProperties(), httpClientOptions);
-        log.debug("sc.rest.httpPostRelationship - reaponse: " + url.toString() + " " + relationship.toString() + " " + httpClientOptions.toString());
-        return reaponse;
+        Map<String, Object> response;
+        try {
+            response = http.post(url, relationship.getAllProperties(), httpClientOptions);
+            log.debug("sc.rest.httpPostRelationship - input: " + url.toString() + " " + relationship.toString() + " " + httpClientOptions.toString());
+        } catch (Exception ex) {
+            Logger.getLogger(HttpPostClient.class.getName()).log(Level.SEVERE, null, ex);
+
+            if (httpClientOptions.get("enableErrorMessage").equals(true)) {
+                response = new HashMap();
+                response.put("error", "http post error: " + ex.toString());
+            } else {
+                response = null;
+            }
+            log.error("sc.rest.httpPostRelationship - input: " + url.toString() + " " + relationship.toString() + " " + httpClientOptions.toString());
+        }
+        return response;
     }
 
     // --- http https post
@@ -140,7 +180,7 @@ public class HttpPostClient {
             httpClientSecure = HttpClientBuilder.create().build();
         }
 
-        public Map<String, Object> post(String url, Object inputObject, Map<String, Object> httpClientOptions) {
+        public Map<String, Object> post(String url, Object inputObject, Map<String, Object> httpClientOptions) throws JsonProcessingException, UnsupportedEncodingException, IOException {
 
             CloseableHttpClient httpClient;
 
@@ -153,58 +193,27 @@ public class HttpPostClient {
 
             // --- result variables
             Map<String, Object> httpClientResultMap = new HashMap<String, Object>();
-            Boolean httpClientError = false;
 
             // --- http post
-            try {
-                // --- Object to JSON 
-                ObjectMapper mapper = new ObjectMapper();
-                String jsonInString = mapper.writeValueAsString(inputObject);
+            // --- Object to JSON
+            ObjectMapper mapper = new ObjectMapper();
+            String jsonInString = mapper.writeValueAsString(inputObject);
 
-                // --- post
-                HttpPost postRequest = new HttpPost(url);
-                postRequest.setEntity(new StringEntity(jsonInString));
-                postRequest.setHeader(HttpHeaders.CONTENT_TYPE, "application/json");
-                CloseableHttpResponse httpResponse = httpClient.execute(postRequest);
+            // --- post
+            HttpPost postRequest = new HttpPost(url);
+            postRequest.setEntity(new StringEntity(jsonInString));
+            postRequest.setHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+            CloseableHttpResponse httpResponse = httpClient.execute(postRequest);
 
-                // --- response
-                String content = EntityUtils.toString(httpResponse.getEntity());
-                int statusCode = httpResponse.getStatusLine().getStatusCode();
+            // --- response
+            String content = EntityUtils.toString(httpResponse.getEntity());
+            int statusCode = httpResponse.getStatusLine().getStatusCode();
 
-                httpClientResultMap = new Gson().fromJson(content.toString(), Map.class);
-                httpClientError = false;
+            httpClientResultMap = new Gson().fromJson(content.toString(), Map.class);
 
-            } catch (JsonProcessingException ex) {
-                System.out.println("sc.rest.httpPostRelationship - error: JsonProcessingException " + ex.toString());
-                httpClientResultMap.put("error", "JsonProcessingException");
-                httpClientError = true;
-            } catch (UnsupportedEncodingException ex) {
-                System.out.println("sc.rest.httpPostRelationship - error: UnsupportedEncodingException " + ex.toString());
-                httpClientResultMap.put("error", "UnsupportedEncodingException");
-                httpClientError = true;
-            } catch (IOException ex) {
-                System.out.println("sc.rest.httpPostRelationship - error: IOException" + ex.toString());
-                httpClientResultMap.put("error", "IOException");
-                httpClientError = true;
-            } catch (Exception ex) {
-                System.out.println("sc.rest.httpPostRelationship - error: " + ex.toString());
-                httpClientResultMap.put("error", "Exception");
-                httpClientError = true;
-            }
+            // --- return result
+            return httpClientResultMap;
 
-            if (httpClientOptions.get("enableErrorMessage").equals(true)) {
-                // --- send result or error message 
-                return httpClientResultMap;
-            } else {
-                // --- send null on error 
-                if (httpClientError.equals(true)) {
-                    // --- send null on error
-                    return null;
-                } else {
-                    // --- return result
-                    return httpClientResultMap;
-                }
-            }
         }
     }
 }
