@@ -52,73 +52,6 @@ RETURN sc.rest.urlEncodeString('aaa.bbb@email.com {jsonString:"!"#$&/()"}') AS u
 
 
 
-==== jsonExportNode - function
-- sc.jsonExportNode(neo4jNode) - return json Neo4j Node string"
-
-
-====== Example
-[source,cypher]
-----
-MATCH (n:scTestNode) DETACH DELETE n;
-CREATE (n:scTestNode {string:"string", integer:123, boolean:true, float:123.456}) RETURN n;
-
-MATCH (n:scTestNode)  RETURN sc.jsonExportNode(n) AS jsonExportNode;
-----
-[source,cypher]
-----
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-+"jsonExportNode"                                                      +
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-+"{_id:83,_labels:[scTestNode],_properties:{"boolean":true,"string":"st+
-+ring","integer":123,"float":123.456}}"                                +
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-----
-
-==== jsonExportNode - function
-- sc.jsonExportNode(neo4jNode) - return json Neo4j Node string"
-
-====== Example
-[source,cypher]
-----
-MATCH (n:scTestNode) DETACH DELETE n;
-CREATE (n:scTestNode {string:"string", integer:123, boolean:true, float:123.456}) RETURN n;
-
-MATCH (n:scTestNode)  RETURN sc.jsonExportNode(n) AS jsonExportNode;
-----
-[source,cypher]
-----
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-+"jsonExportNode"                                                      +
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-+"{_id:83,_labels:[scTestNode],_properties:{"boolean":true,"string":"st+
-+ring","integer":123,"float":123.456}}"                                +
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-----
-
-
-
-==== jsonExportRelationship - function
-- sc.jsonExportRelationship(neo4jRelationship) - return json Neo4j Relationship string"
-
-====== Example
-[source,cypher]
-----
-MATCH ()-[r:scTesttRelationship]->() DELETE r
-CREATE (:scTestNode)-[r:scTesttRelationship {string:"string", integer:123, boolean:true, float:123.456}]->(:scTestNode) RETURN r
-
-MATCH ()-[r:scTesttRelationship]->()  RETURN sc.jsonExportRelationship(r) AS jsonExportRelationship
-----
-[source,cypher]
-----
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-+"jsonExportRelationship"                                              +
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-+"{_id:33,_from:232,_to:233,_type:scTesttRelationship,_properties:{"boo+
-+lean":true,"string":"string","integer":123,"float":123.456}}"         +
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-----
-
-
 
 
 ==== httpPostJson  httpPostNode - function
@@ -584,65 +517,70 @@ RETURN sc.javascript.listVm()
 
 
 
+==== jsonExportNode - function
+- sc.jsonExportNode(neo4jNode) - return json Neo4j Node string"
 
-=== ---------------------------------------------------------------------
-=== ---------------------------------------------------------------------
-=== ---------------------------------------------------------------------
-=== User Defined Procedure
 
-The user defined procedure allows you to index and search a explicit Lucene index within Neo4j.
-
-Given properties of a node can be added to indexes named according to the labels of the node.
-After that the data can be searched with Lucene Syntax.
-
-See link:{root}/main/java/example/FullTextIndex.java[`FullTextIndex.java`] and the link:{root}/test/java/example/LegacyFullTextIndexTest.java[`LegacyFullTextIndexTest.java`].
-
+====== Example
 [source,cypher]
 ----
-MATCH (n:Person)
-CALL example.index(id(n), ['name']);
+MATCH (n:scTestNode) DETACH DELETE n;
+CREATE (n:scTestNode {string:"string", integer:123, boolean:true, float:123.456}) RETURN n;
 
-CALL example.search('Person','name:Jo*') YIELD nodeId
+MATCH (n:scTestNode)  RETURN sc.jsonExportNode(n) AS jsonExportNode;
 ----
-
-=== User Defined Function
-
-The user defined function is a simple join function that joins a list of strings using a delimiter.
-
-See link:{root}/main/java/example/Join.java[`Join.java`] and the link:{root}/test/java/example/JoinTest.java[`JoinTest.java`].
-
 [source,cypher]
 ----
-RETURN example.join(['A','quick','brown','fox'],' ') as sentence
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++"jsonExportNode"                                                      +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++"{_id:83,_labels:[scTestNode],_properties:{"boolean":true,"string":"st+
++ring","integer":123,"float":123.456}}"                                +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ----
 
-=== User Defined Aggregation Function
+==== jsonExportNode - function
+- sc.jsonExportNode(neo4jNode) - return json Neo4j Node string"
 
-The aggregation function `example.last` returns the last row of an aggregation.
-
+====== Example
 [source,cypher]
 ----
-MATCH (n:Person)
-WITH n ORDER BY n.born
-RETURN n.born, example.last(n) as last
+MATCH (n:scTestNode) DETACH DELETE n;
+CREATE (n:scTestNode {string:"string", integer:123, boolean:true, float:123.456}) RETURN n;
+
+MATCH (n:scTestNode)  RETURN sc.jsonExportNode(n) AS jsonExportNode;
+----
+[source,cypher]
+----
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++"jsonExportNode"                                                      +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++"{_id:83,_labels:[scTestNode],_properties:{"boolean":true,"string":"st+
++ring","integer":123,"float":123.456}}"                                +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ----
 
-See link:{root}/main/java/example/Last.java[`Last.java`] and the link:{root}/test/java/example/LastTest.java[`LastTest.java`].
 
-== Building
 
-This project uses maven, to build a jar-file with the procedure in this
-project, simply package the project with maven:
+==== jsonExportRelationship - function
+- sc.jsonExportRelationship(neo4jRelationship) - return json Neo4j Relationship string"
 
-    mvn clean package
+====== Example
+[source,cypher]
+----
+MATCH ()-[r:scTesttRelationship]->() DELETE r
+CREATE (:scTestNode)-[r:scTesttRelationship {string:"string", integer:123, boolean:true, float:123.456}]->(:scTestNode) RETURN r
 
-This will produce a jar-file,`target/procedure-template-1.0.0-SNAPSHOT.jar`,
-that can be deployed in the `plugin` directory of your Neo4j instance.
-
-== License
-
-Apache License V2, see LICENSE
-[source,]
+MATCH ()-[r:scTesttRelationship]->()  RETURN sc.jsonExportRelationship(r) AS jsonExportRelationship
+----
+[source,cypher]
+----
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++"jsonExportRelationship"                                              +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++"{_id:33,_from:232,_to:233,_type:scTesttRelationship,_properties:{"boo+
++lean":true,"string":"string","integer":123,"float":123.456}}"         +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ----
 
-----
+
