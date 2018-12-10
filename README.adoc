@@ -129,7 +129,7 @@ Run http/https json post and receive response from REST
 - sc.rest.httpPostRelationship(\"url string\", neo4jRelationship) - return json document
 
 ====== Example
-REST server
+node.js REST server
 [source,node.js]
 ----
 var express = require('express')
@@ -151,7 +151,7 @@ var httpsOptions = {
     secureProtocol: "TLSv1_2_method"
 };
 
-https.createServer(httpsOptions, app).listen({port: 8443}); //, host: "10.10.3.123" 
+https.createServer(httpsOptions, app).listen({port: 8443}); 
 http.createServer(app).listen(8080);
 
 app.post('/restTest', function (req, res) {
