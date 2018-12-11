@@ -165,7 +165,7 @@ public class Neo4jMqtt {
             mqttBroker.put("messageSendErrorMessage", "sc.mqtt -  publish error: " + name + " " + toppic + " " + mqttMesageString + " " + ex.toString());
             log.error("sc.mqtt -  publish error: " + name + " " + toppic + " " + mqttMesageString + " " + ex.toString());
         }
-        return Stream.of(mqttBrokersMap.getMapElementByName(name)).map(MapResult::new);
+        return Stream.of(mqttBrokersMap.getMapElementByNameClean(name)).map(MapResult::new);
     }
 
     // ----------------------------------------------------------------------------------
