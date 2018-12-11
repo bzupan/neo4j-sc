@@ -1,6 +1,5 @@
 == User Defined sc Neo4j Functions - Procedures
 
-
 === Setup
 
 - edit neo4j.conf and add  sc.*  e.g.: 
