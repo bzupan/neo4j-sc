@@ -16,7 +16,7 @@ dbms.security.procedures.whitelist=apoc.*,sc.*
 
 [source,bash]
 ----
-cp ./sc-neo4j-3.4.0.0.jar /var/lib/neo4j/plugins
+cp ./sc-neo4j-3.x.x.x.jar /var/lib/neo4j/plugins
 ----
 - restart neo4j services
 [source,bash]
@@ -24,7 +24,7 @@ cp ./sc-neo4j-3.4.0.0.jar /var/lib/neo4j/plugins
 service neo4j restart
 ----
 
-- check for sc.xxxxxxx with: 
+- check for sc.xxxx.xxx with: 
 [source,cypher]
 ----
 CALL dbms.functions()
@@ -61,9 +61,9 @@ RETURN sc.rest.urlEncodeString('aaa.bbb@email.com {jsonString:"!"#$&/()"}') AS u
 ==== httpPostJson - function
 Run http/https json post and receive response from REST - based on Apache HttpComponents!
 
-- sc.rest.httpJsonPost(\"url string\", {json document}) - return json document
-- sc.rest.httpPostNode(\"url string\", neo4jNode) - return json document
-- sc.rest.httpPostRelationship(\"url string\", neo4jRelationship) - return json document
+- sc.rest.httpJsonPost("urlString\", {json document}) - return json document
+- sc.rest.httpPostNode("urlString", neo4jNode) - return json document
+- sc.rest.httpPostRelationship("urlString", neo4jRelationship) - return json document
 
 ====== Example
 node.js REST server
@@ -234,7 +234,7 @@ Store cypher query into Neo4j Java VM and run query when needed
 
 - sc.cypher.addVm('name', 'cypher query', {cypher query parameters}) - add CYPHER Java VM calls
 - sc.cypher.listVm() - list all CYPHER java VM calls
-- sc.cypher.runProcedureVm(\"stringFunctionName\", {object:\"params\"} - run CYPHER from Java VM
+- sc.cypher.runProcedureVm("stringFunctionName", {object:"params"} - run CYPHER from Java VM
 - sc.cypher.deleteVm('name') - add CYPHER Java VM calls
 
 
@@ -278,7 +278,7 @@ Store cypher query into Neo4j DB as nodes and run query when needed
 
 - sc.cypher.addDb('name', 'cypher query', {cypher query parameters}) - add CYPHER Java VM calls
 - sc.cypher.listDb() - list all CYPHER java VM calls
-- sc.cypher.runProcedureDb(\"stringFunctionName\", {object:\"params\"} - run CYPHER from Java VM
+- sc.cypher.runProcedureDb('stringFunctionName', {object:'params'} - run CYPHER from Java VM
 - sc.cypher.deleteDb('name') - add CYPHER Java VM calls
 
 
@@ -395,10 +395,10 @@ CALL sc.cypher.runVm("findPerson", {name:"abc"})
 ==== Cypher Neo4j CRON - functions/procedures
 Run cypher query by cron - based on cron4j library.
 
-- sc.cron.list()  // list all cron jobs
-- sc.cron.delete('cronName')  // remove cron job
-- sc.cron.add('cronName','* * * * *','MATCH (n) RETURN n', {cypherQueryParams:'optional'},{cronScheduler':optional', cronDelay:0})   // add cron job
-- sc.cron.run('cronName') // run cron job
+- sc.cron.list()  - list all cron jobs
+- sc.cron.delete('cronName')  - remove cron job
+- sc.cron.add('cronName','* * * * *','MATCH (n) RETURN n', {cypherQueryParams:'optional'},{cronScheduler':optional', cronDelay:0})   - add cron job
+- sc.cron.run('cronName') - run cron job
 
 
 
@@ -455,12 +455,12 @@ CALL sc.cron.run('cronName')
 ==== Cypher Neo4j MqTT client - functions/procedures
 MqTT publish subscribe from Neo4j - based on org.eclipse.paho.client.mqttv3 library.
 
-- RETURN sc.mqtt.list() // list MqTT brokers
-- RETURN sc.mqtt.add('mqttBrokerName', {brokerUrl:'tcp://iot.eclipse.org:1883', clientId:'123'  })   // add MqTT broker client
-- RETURN sc.mqtt.delete('mqttBrokerName') // delete MqTT broker client
-- CALL sc.mqtt.publish('mqttBrokerName', '/mqtt/topic/path', 'message') // publish message
-- CALL sc.mqtt.subscribe('mqttBrokerName', '/mqtt/topic/path','cypherQuery' ) // subscribe cypher query to mqtt messages
-- RETURN sc.mqtt.unSubscribe('mqttBrokerName', '/mqtt/topic/path') // subscribe cypher query to mqtt messages
+-  sc.mqtt.list() // list MqTT brokers
+-  sc.mqtt.add('mqttBrokerName', {brokerUrl:'tcp://iot.eclipse.org:1883', clientId:'123'  })   - add MqTT broker client
+-  sc.mqtt.delete('mqttBrokerName') - delete MqTT broker client
+-  sc.mqtt.publish('mqttBrokerName', '/mqtt/topic/path', 'message') - publish message
+-  sc.mqtt.subscribe('mqttBrokerName', '/mqtt/topic/path','cypherQuery' ) - subscribe cypher query to mqtt messages
+-  sc.mqtt.unSubscribe('mqttBrokerName', '/mqtt/topic/path') - subscribe cypher query to mqtt messages
 
 
 ====== Example
@@ -614,7 +614,7 @@ RETURN sc.javascript.listVm()
 
 === Export to JSON
 ==== jsonExportNode - function
-- sc.jsonExportNode(neo4jNode) - return json Neo4j Node string"
+- sc.json.jsonExportNode(neo4jNode) - return json Neo4j Node string"
 
 
 ====== Example
@@ -623,7 +623,7 @@ RETURN sc.javascript.listVm()
 MATCH (n:scTestNode) DETACH DELETE n;
 CREATE (n:scTestNode {string:"string", integer:123, boolean:true, float:123.456}) RETURN n;
 
-MATCH (n:scTestNode)  RETURN sc.jsonExportNode(n) AS jsonExportNode;
+MATCH (n:scTestNode)  RETURN sc.json.jsonExportNode(n) AS jsonExportNode;
 ----
 [source,cypher]
 ----
@@ -644,7 +644,7 @@ MATCH (n:scTestNode)  RETURN sc.jsonExportNode(n) AS jsonExportNode;
 MATCH ()-[r:scTesttRelationship]->() DELETE r
 CREATE (:scTestNode)-[r:scTesttRelationship {string:"string", integer:123, boolean:true, float:123.456}]->(:scTestNode) RETURN r
 
-MATCH ()-[r:scTesttRelationship]->()  RETURN sc.jsonExportRelationship(r) AS jsonExportRelationship
+MATCH ()-[r:scTesttRelationship]->()  RETURN sc.json.jsonExportRelationship(r) AS jsonExportRelationship
 ----
 [source,cypher]
 ----
