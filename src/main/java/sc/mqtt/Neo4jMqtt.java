@@ -199,7 +199,7 @@ public class Neo4jMqtt {
             log.error("sc.mqtt -  subscribe error: " + name + " " + toppic + " " + " " + ex.toString());
 
         }
-        return Stream.of(subscribeList).map(MapResult::new);
+        return Stream.of(mqttBrokersMap.getMapElementByNameClean(name)).map(MapResult::new);
     }
 
     @UserFunction
