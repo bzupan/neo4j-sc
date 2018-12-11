@@ -62,7 +62,7 @@ public class Neo4jMqtt {
     // list
     // ----------------------------------------------------------------------------------
     @UserFunction
-    @Description("RETURN sc.mqtt.list() // list MqTT ")
+    @Description("RETURN sc.mqtt.list() // list MqTT brokers")
     public List< Map<String, Object>> list() {
         log.debug("sc.mqtt.list: " + mqttBrokersMap.getListFromMapAllClean().toString());
         return mqttBrokersMap.getListFromMapAllClean();
@@ -80,6 +80,12 @@ public class Neo4jMqtt {
         String brokerUrl = mqtt.get("brokerUrl").toString();
         String clientId = name; //mqtt.get("clientId").toString();
 
+        if (mqtt.get("clientId").equals(null)) {
+            clientId = name;
+        } else {
+            clientId = mqtt.get("clientId").toString();
+        }
+
         MemoryPersistence persistence = new MemoryPersistence();
 
         Map<String, Object> mqttBrokerTmp = new HashMap<String, Object>();
@@ -95,8 +101,8 @@ public class Neo4jMqtt {
             mqttBrokerTmp.put("messageSubscribeError", 0);
             mqttBrokerTmp.put("messageSubscribeReceived", 0);
             mqttBrokerTmp.put("mqttBrokerNeo4jClient", mqttBrokerNeo4jClient);
-            mqttBrokerTmp.put("publishList", "");
-            mqttBrokerTmp.put("subscribeList", "");
+            Map<String, Object> subscribeList = new HashMap<String, Object>();
+            mqttBrokerTmp.put("subscribeList", subscribeList);
             mqttBrokersMap.addToMap(name, mqttBrokerTmp);
             return mqttBrokersMap.getMapElementByNameClean(name);
         } catch (Exception ex) {
@@ -159,7 +165,7 @@ public class Neo4jMqtt {
             mqttBroker.put("messageSendErrorMessage", "sc.mqtt -  publish error: " + name + " " + toppic + " " + mqttMesageString + " " + ex.toString());
             log.error("sc.mqtt -  publish error: " + name + " " + toppic + " " + mqttMesageString + " " + ex.toString());
         }
-        return mqttBrokersMap.getListFromMapAllClean().stream().map(MapResult::new);
+        return Stream.of(mqttBrokersMap.getMapElementByName(name)).map(MapResult::new);
     }
 
     // ----------------------------------------------------------------------------------
@@ -177,11 +183,15 @@ public class Neo4jMqtt {
 
         MqttClientNeo mqttBrokerNeo4jClient = (MqttClientNeo) mqttBroker.get("mqttBrokerNeo4jClient");
         ProcessMqttMessage task = new ProcessMqttMessage();
+        
+        Map<String, Object> subscribeList = null;
         try {
-            mqttBroker.put("subscribeList", mqttBroker.get("subscribeList").toString() + " {name:" + name + ", toppic:" + toppic + ", query:" + query + "},");
-            mqttBrokerNeo4jClient.listen(toppic, query, task);
+            // --- add to subscription list
+            subscribeList = (Map<String, Object>) mqttBroker.get("subscribeList");
+            subscribeList.put(toppic, query);
             mqttBroker.put("messageSubscribeOk", 1 + (int) mqttBroker.get("messageSubscribeOk"));
 
+            mqttBrokerNeo4jClient.listen(toppic, query, task);
             log.debug("sc.mqtt -  subscribe ok: " + name + " " + toppic);
         } catch (Exception ex) {
             mqttBroker.put("messageSubscribeError", 1 + (int) mqttBroker.get("messageSubscribeError"));
@@ -189,11 +199,11 @@ public class Neo4jMqtt {
             log.error("sc.mqtt -  subscribe error: " + name + " " + toppic + " " + " " + ex.toString());
 
         }
-        return null;
+        return Stream.of(subscribeList).map(MapResult::new);
     }
 
-    @Procedure(mode = Mode.WRITE)
-    @Description("CALL sc.mqtt.subscribe('mqttBrokerName', '/mqtt/topic/path','cypherQuery', ) // subscribe cypher query to mqtt messages")
+    @UserFunction
+    @Description("CALL sc.mqtt.unSubscribe('mqttBrokerName', '/mqtt/topic/path' ) // subscribe cypher query to mqtt messages")
     public Stream<MapResult> unSubscribe(
             @Name("name") String name,
             @Name("topic") String toppic
@@ -203,6 +213,8 @@ public class Neo4jMqtt {
         MqttClientNeo mqttBrokerNeo4jClient = (MqttClientNeo) mqttBroker.get("mqttBrokerNeo4jClient");
         mqttBrokerNeo4jClient.unsubscribe(toppic);
 
+        Map<String, Object> subscribeList = (Map<String, Object>) mqttBroker.get("subscribeList");
+        subscribeList.remove(toppic);
         log.debug("sc.mqtt - unSubscribe: " + name + " " + toppic);
 
         return null;
