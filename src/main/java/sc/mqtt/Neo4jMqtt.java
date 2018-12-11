@@ -204,7 +204,7 @@ public class Neo4jMqtt {
 
     @UserFunction
     @Description("CALL sc.mqtt.unSubscribe('mqttBrokerName', '/mqtt/topic/path' ) // subscribe cypher query to mqtt messages")
-    public Stream<MapResult> unSubscribe(
+    public Object unSubscribe(
             @Name("name") String name,
             @Name("topic") String toppic
     ) {

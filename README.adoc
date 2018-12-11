@@ -482,13 +482,18 @@ MATCH (n:MqttNode) RETURN n
 List MqTT broker connections.
 [source,cypher]
 ----
-RETURN sc.mqtt.list('mqttBrokerName')
+RETURN sc.mqtt.list()
 ----
 
-List MqTT subscription.
+Remove MqTT subscription.
 [source,cypher]
 ----
-RETURN sc.mqtt.delete('mqttBrokerName','/mqtt/topic/path')
+RETURN sc.mqtt.unSubscribe('mqttBrokerName','/mqtt/topic/path')
+----
+
+[source,cypher]
+----
+ RETURN sc.mqtt.delete('mqttBrokerName')
 ----
 
 
