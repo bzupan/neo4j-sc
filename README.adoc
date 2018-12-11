@@ -393,7 +393,7 @@ CALL sc.cypher.runVm("findPerson", {name:"abc"})
 
 
 ==== Cypher Neo4j CRON - functions/procedures
-Run cypher query by cron - based on cron4j libary.
+Run cypher query by cron - based on cron4j library.
 
 - sc.cron.list()  // list all cron jobs
 - sc.cron.delete('cronName')  // remove cron job
@@ -403,7 +403,7 @@ Run cypher query by cron - based on cron4j libary.
 
 
 ====== Example
-Add  queries:
+Add  CRON task:
 [source,cypher]
 ----
 WITH "MERGE (n:CronNode  ) ON CREATE SET n.created = timestamp(), n.count = 1 ON MATCH SET n.update = timestamp(), n.count = n.count+1 RETURN n" AS createTestNode 
@@ -422,6 +422,8 @@ RETURN cronAd
 
 
 ----
+
+Check Neo4j CRON tasks.
 [source,cypher]
 ----
 RETURN sc.cron.list()
@@ -435,15 +437,65 @@ RETURN sc.cron.list()
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ----
 
+Check Nodes created by Neo4j CRON.
 [source,cypher]
 ----
 MATCH (n:CronNode) RETURN n
 ----
 
+Run Neo4j CRON task.
 [source,cypher]
 ----
 CALL sc.cron.run('cronName')
 ----
+
+
+
+
+==== Cypher Neo4j MqTT client - functions/procedures
+MqTT publish subscribe from Neo4j - based on org.eclipse.paho.client.mqttv3 library.
+
+- RETURN sc.mqtt.list() // list MqTT brokers
+- RETURN sc.mqtt.add('mqttBrokerName', {brokerUrl:'tcp://iot.eclipse.org:1883', clientId:'123'  })   // add MqTT broker client
+- RETURN sc.mqtt.delete('mqttBrokerName') // delete MqTT broker client
+- CALL sc.mqtt.publish('mqttBrokerName', '/mqtt/topic/path', 'message') // publish message
+- CALL sc.mqtt.subscribe('mqttBrokerName', '/mqtt/topic/path','cypherQuery' ) // subscribe cypher query to mqtt messages
+- RETURN sc.mqtt.unSubscribe('mqttBrokerName', '/mqtt/topic/path') // subscribe cypher query to mqtt messages
+
+
+====== Example
+Add MqTT broker connection, subscribe to topic and publish:
+[source,cypher]
+----
+RETURN sc.mqtt.add('mqttBrokerName', {brokerUrl:'tcp://iot.eclipse.org:1883' ,clientId:'Neo4jTestClient'  })
+CALL sc.mqtt.subscribe('mqttBrokerName', '/mqtt/topic/path','CREATE (n:MqttNode) SET n.name=$name')
+CALL sc.mqtt.publish('mqttBrokerName', '/mqtt/topic/path',{name:"abc"})
+RETURN sc.mqtt.list()
+----
+
+Check Nodes created by Neo4j MqTT subsciber.
+[source,cypher]
+----
+MATCH (n:MqttNode) RETURN n
+----
+
+List MqTT broker connections.
+[source,cypher]
+----
+RETURN sc.mqtt.list('mqttBrokerName')
+----
+
+List MqTT subscription.
+[source,cypher]
+----
+RETURN sc.mqtt.delete('mqttBrokerName','/mqtt/topic/path')
+----
+
+
+
+
+
+
 
 ===  EVAL JavaScript Neo4j Java VM - function
 Run JavaScript via java Nashorn JavaScript engine for the JVM and receive JavaScript response
