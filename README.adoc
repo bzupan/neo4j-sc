@@ -127,6 +127,14 @@ RETURN sc.rest.httpPostJson("http://127.0.0.1:8080/restTest", {name:123}) AS pos
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ----
 
+[source,cypher]
+----
+WITH sc.rest.httpPostJson("https://127.0.0.1:8443/restTest", {name:123},{enableInsecureHttps: true, enableErrorMessage:true}) AS postResponse 
+RETURN postResponse.array
+----
+
+
+
 https options
 [source,cypher]
 ----
@@ -407,7 +415,7 @@ Add  CRON task:
 ----
 WITH "MERGE (n:CronNode  ) ON CREATE SET n.created = timestamp(), n.count = 1 ON MATCH SET n.update = timestamp(), n.count = n.count+1 RETURN n" AS createTestNode 
 CALL sc.cron.add('cronName','* * * * *',createTestNode) YIELD value AS cronAdd
-RETURN cronAd
+RETURN cronAdd
 
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 +"cronAdd"                                                             +
@@ -435,6 +443,31 @@ RETURN sc.cron.list()
 +String":"* * * * *","cypherParams":{}}]                               +
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ----
+
+[source,cypher]
+----
+RETURN sc.cron.list()
+WITH sc.cron.list() AS cronList
+UNWIND cronList AS cron
+RETURN cron.name, cron.cronRunOk
+----
+
+[source,cypher]
+----
+WITH "WITH sc.cron.list() AS cronList
+UNWIND cronList AS cron
+RETURN cron.name, cron.cronRunOk" AS getCronStatus
+CALL sc.cypher.addDb('getCronStatus', getCronStatus) YIELD value
+RETURN value
+
+CALL sc.cypher.runDb('getCronStatus', {})
+?????????????????????????????????????????????
+?"value"                                    ?
+?????????????????????????????????????????????
+?{"cron.name":"cronName","cron.cronRunOk":9}?
+?????????????????????????????????????????????
+----
+
 
 Check Nodes created by Neo4j CRON.
 [source,cypher]
