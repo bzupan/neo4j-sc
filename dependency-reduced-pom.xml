@@ -4,7 +4,7 @@
   <groupId>org.sc.neo4j</groupId>
   <artifactId>sc-neo4j</artifactId>
   <name>Neo4j Procedure Functions</name>
-  <version>3.4.0.0</version>
+  <version>3.4.0.1</version>
   <description>Smart Com Neo4j procedures functions</description>
   <build>
     <plugins>

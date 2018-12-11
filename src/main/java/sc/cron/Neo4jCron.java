@@ -86,7 +86,7 @@ public class Neo4jCron {
 
         Neo4jTask cronTask = new Neo4jTask(name, cypherQueryString, cypherQueryParams);
         CronScheduler cronSchedule = new CronScheduler();
-        int cronDelay = (int) cronParams.get("cronDelay");
+        Long cronDelay = (Long) cronParams.get("cronDelay");
         cronSchedule.start(name, cron, cronDelay, cronTask);
 
         Map<String, Object> cronObjectTmp = new HashMap<String, Object>();
@@ -115,7 +115,8 @@ public class Neo4jCron {
     ) {
         Map<String, Object> cronObjectTmp = cronMap.getMapElementByName(name);
         CronScheduler cronScheduler = (CronScheduler) cronObjectTmp.get("cronSchedule");
-        cronScheduler.run(name);
+        Neo4jTask cronTask = (Neo4jTask) cronObjectTmp.get("cronTask");
+        cronScheduler.run(name, cronTask);
 
         log.info("sc.cron.run: " + cronObjectTmp.toString());
         return null;
@@ -168,7 +169,7 @@ public class Neo4jCron {
         }
 
         // --- Cron scheduler start
-        public Scheduler start(String cronName, String cronSchedule, int taskRunDelay, Neo4jTask cronTask) {
+        public Scheduler start(String cronName, String cronSchedule, Long taskRunDelay, Neo4jTask cronTask) {
             cronScheduler.schedule(cronSchedule, new Runnable() {
                 // --- run task
                 public void run() {
@@ -195,9 +196,9 @@ public class Neo4jCron {
         }
 
         // --- Cron scheduler stop
-        public void run(String cronName) {
+        public void run(String cronName, Neo4jTask cronTask) {
             log.debug("sc.cron CronScheduler run: " + cronName);
-            cronScheduler.launch(cronScheduler.getTask(cronName));
+            cronTask.run();
         }
     }
 

@@ -3,20 +3,20 @@
 
 === Setup
 
-
 - edit neo4j.conf and add  sc.*  e.g.: 
 
 [source,neo4j.conf]
 ----
-dbms.security.procedures.unrestricted=apoc.*,,sc.*
+vi /etc/neo4j/neo4j.conf
+...
+dbms.security.procedures.unrestricted=apoc.*,sc.*
 dbms.security.procedures.whitelist=apoc.*,sc.*
 ----
 - copy sc-neo4j-3.4.x.x.jar to Neo4j plugins directory e.g.:
 
 [source,bash]
 ----
-copy /b/v/y C:\brane\NetBeansProjects\neo4j-procedure-functions\target\sc-neo4j-3.4.0.0.jar C:\brane\NetBeansProjects\neo4j-desktop\neo4jDatabases\database-c6ca431d-2d58-4f6c-b796-9fd6156b5d2d\installation-3.4.9\plugins
-
+cp ./sc-neo4j-3.4.0.0.jar /var/lib/neo4j/plugins
 ----
 - restart neo4j services
 [source,bash]
@@ -29,6 +29,13 @@ service neo4j restart
 ----
 CALL dbms.functions()
 CALL dbms.procedures()
+----
+
+- loggging: 
+[source,bash]
+----
+# check dbms.logs.debug.level in the neo4j.conf - set to DEBUG
+tail -f /var/log/neo4j/debug.log
 ----
 
 === http post
@@ -385,7 +392,58 @@ CALL sc.cypher.runVm("findPerson", {name:"abc"})
 ----
 
 
+==== Cypher Neo4j CRON - functions/procedures
+Run cypher query by cron - based on cron4j libary.
 
+- sc.cron.list()  // list all cron jobs
+- sc.cron.delete('cronName')  // remove cron job
+- sc.cron.add('cronName','* * * * *','MATCH (n) RETURN n', {cypherQueryParams:'optional'},{cronScheduler':optional', cronDelay:0})   // add cron job
+- sc.cron.run('cronName') // run cron job
+
+
+
+====== Example
+Add  queries:
+[source,cypher]
+----
+WITH "MERGE (n:CronNode  ) ON CREATE SET n.created = timestamp(), n.count = 1 ON MATCH SET n.update = timestamp(), n.count = n.count+1 RETURN n" AS createTestNode 
+CALL sc.cron.add('cronName','* * * * *',createTestNode) YIELD value AS cronAdd
+RETURN cronAd
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++"cronAdd"                                                             +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++{"name":"cronName","cronRunError":0,"cypherQuery":"MERGE (n:CronNode  +
++) ON CREATE SET n.created = timestamp(), n.count = 1 ON MATCH SET n.up+
++date = timestamp(), n.count = n.count+1 RETURN n","cronRunOk":0,"cronS+
++tring":"* * * * *","cypherParams":{}}                                 +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
+----
+[source,cypher]
+----
+RETURN sc.cron.list()
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++"sc.cron.list()"                                                      +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++[{"name":"cronName","cronRunError":0,"cypherQuery":"MERGE (n:CronNode +
++ ) ON CREATE SET n.created = timestamp(), n.count = 1 ON MATCH SET n.u+
++pdate = timestamp(), n.count = n.count+1 RETURN n","cronRunOk":2,"cron+
++String":"* * * * *","cypherParams":{}}]                               +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+----
+
+[source,cypher]
+----
+MATCH (n:CronNode) RETURN n
+----
+
+[source,cypher]
+----
+CALL sc.cron.run('cronName')
+----
 
 ===  EVAL JavaScript Neo4j Java VM - function
 Run JavaScript via java Nashorn JavaScript engine for the JVM and receive JavaScript response
