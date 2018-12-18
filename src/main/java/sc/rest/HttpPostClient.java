@@ -17,8 +17,6 @@ import com.google.gson.Gson;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import javax.net.ssl.SSLContext;
 
@@ -67,8 +65,6 @@ public class HttpPostClient {
             response = http.post(url, inputObject, httpClientOptions);
             log.debug("sc.rest.httpPostRelationship - input: " + url.toString() + " " + inputObject.toString() + " " + httpClientOptions.toString());
         } catch (Exception ex) {
-            Logger.getLogger(HttpPostClient.class.getName()).log(Level.SEVERE, null, ex);
-
             if (httpClientOptions.get("enableErrorMessage").equals(true)) {
                 response = new HashMap();
                 response.put("error", "http post error: " + ex.toString());
@@ -102,8 +98,6 @@ public class HttpPostClient {
             response = http.post(url, node.getAllProperties(), httpClientOptions);
             log.debug("sc.rest.httpPostRelationship - input: " + url.toString() + " " + node.toString() + " " + httpClientOptions.toString());
         } catch (Exception ex) {
-            Logger.getLogger(HttpPostClient.class.getName()).log(Level.SEVERE, null, ex);
-
             if (httpClientOptions.get("enableErrorMessage").equals(true)) {
                 response = new HashMap();
                 response.put("error", "http post error: " + ex.toString());
@@ -136,7 +130,7 @@ public class HttpPostClient {
             response = http.post(url, relationship.getAllProperties(), httpClientOptions);
             log.debug("sc.rest.httpPostRelationship - input: " + url.toString() + " " + relationship.toString() + " " + httpClientOptions.toString());
         } catch (Exception ex) {
-            Logger.getLogger(HttpPostClient.class.getName()).log(Level.SEVERE, null, ex);
+
 
             if (httpClientOptions.get("enableErrorMessage").equals(true)) {
                 response = new HashMap();

@@ -13,10 +13,6 @@ import org.neo4j.procedure.Description;
 import org.neo4j.procedure.Name;
 import org.neo4j.procedure.UserFunction;
 
-import javax.script.Invocable;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-import javax.script.ScriptException;
 import org.neo4j.logging.Log;
 import org.neo4j.procedure.Context;
 import org.neo4j.graphdb.GraphDatabaseService;
@@ -26,6 +22,7 @@ import org.neo4j.graphdb.Result;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.procedure.Mode;
 import org.neo4j.procedure.Procedure;
+
 import apoc.result.MapResult;
 
 public class CypherQuery {

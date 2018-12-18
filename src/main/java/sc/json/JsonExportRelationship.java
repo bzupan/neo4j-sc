@@ -7,21 +7,16 @@ import org.neo4j.procedure.Name;
 import org.neo4j.procedure.UserFunction;
 import org.neo4j.logging.Log;
 import org.neo4j.procedure.Context;
-
+import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.Node;
 
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLEncoder;
 
 import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
-import com.google.gson.Gson;
-import org.neo4j.graphdb.Relationship;
 
 /**
  * Export Neo4j relationship to JSON string
