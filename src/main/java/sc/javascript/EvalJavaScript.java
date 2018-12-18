@@ -23,7 +23,7 @@ import org.neo4j.procedure.Context;
 import org.neo4j.procedure.Mode;
 import org.neo4j.procedure.Procedure;
 
-import sc.MapResult;
+import apoc.result.MapResult;
 
 /**
  * This is .

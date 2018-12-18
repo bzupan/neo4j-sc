@@ -43,7 +43,7 @@ import org.neo4j.graphdb.Transaction;
 import org.neo4j.procedure.Mode;
 import org.neo4j.procedure.Procedure;
 
-import sc.MapResult;
+import apoc.result.MapResult;
 import sc.MapProcess;
 
 public class Neo4jMqtt {

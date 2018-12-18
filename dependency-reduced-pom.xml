@@ -4,7 +4,7 @@
   <groupId>org.sc.neo4j</groupId>
   <artifactId>sc-neo4j</artifactId>
   <name>Neo4j Procedure Functions</name>
-  <version>3.5.0.0</version>
+  <version>3.5.0.1</version>
   <description>Smart Com Neo4j procedures functions</description>
   <build>
     <plugins>
@@ -116,7 +116,7 @@
     <dependency>
       <groupId>org.neo4j.driver</groupId>
       <artifactId>neo4j-java-driver</artifactId>
-      <version>1.4.2</version>
+      <version>1.6.3</version>
       <scope>test</scope>
     </dependency>
     <dependency>

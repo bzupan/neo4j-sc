@@ -30,7 +30,7 @@ import it.sauronsoftware.cron4j.TaskTable;
 import it.sauronsoftware.cron4j.Scheduler;
 
 import sc.MapProcess;
-import sc.MapResult;
+import apoc.result.MapResult;
 
 public class Neo4jCron {
 
