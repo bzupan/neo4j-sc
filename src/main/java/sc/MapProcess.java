@@ -1,9 +1,14 @@
 package sc;
 
+import apoc.result.VirtualNode;
+import apoc.util.Util;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.Node;
+import apoc.result.VirtualNode;
 
 public class MapProcess {
 
@@ -93,6 +98,26 @@ public class MapProcess {
                 }
             }
             return mapTmp;
+        }
+
+        public ArrayList<Node> cleanNodeList(final Map<String, Object> mapInput, List<String> labelNames ,GraphDatabaseService db) {
+            final Map<String, Object> mapTmp = new HashMap<String, Object>();
+            final List<String> mapKeys = new ArrayList<String>(mapInput.keySet());
+            final ArrayList<Node> nodes = new ArrayList();
+            for (int i = 0; i < mapKeys.size(); ++i) {
+                final Object mapObject = mapInput.get(mapKeys.get(i));
+                if (mapObject instanceof String
+                        || mapObject instanceof Integer
+                        || mapObject instanceof Boolean
+                        || mapObject instanceof Float
+                        || mapObject instanceof Double
+                        || mapObject instanceof Map) {
+                    mapTmp.put(mapKeys.get(i), mapObject);
+                   
+                }
+                 nodes.add( new VirtualNode(Util.labels(labelNames), mapTmp, db));
+            }
+            return nodes;
         }
     }
 
