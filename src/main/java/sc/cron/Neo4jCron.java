@@ -28,6 +28,8 @@ import it.sauronsoftware.cron4j.Scheduler;
 
 import sc.MapProcess;
 import apoc.result.MapResult;
+import apoc.result.VirtualNode;
+import apoc.util.Util;
 
 public class Neo4jCron {
 
@@ -52,6 +54,21 @@ public class Neo4jCron {
     public List< Map<String, Object>> list() {
         log.debug("sc.cron.list: " + cronMap.getListFromMapAllClean().toString());
         return cronMap.getListFromMapAllClean(); //.map(CronJob::new);
+    }
+
+    @UserFunction
+    @Description("RETURN sc.cron.listVnode()  // list all cron jobs")
+    public Node listVnode() {
+
+        List<String> labelNames = new ArrayList();
+        labelNames.add("CronNode"); // ['Label'];
+        Map<String, Object> props = new HashMap();
+        props.put("aa", "aa");
+
+       
+        log.debug("sc.cron.list: " + cronMap.getListFromMapAllClean().toString());
+        //return cronMap.getListFromMapAllClean(); //.map(CronJob::new);
+        return new VirtualNode(Util.labels(labelNames), props, db);
     }
 
     // ----------------------------------------------------------------------------------
