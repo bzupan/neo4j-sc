@@ -38,6 +38,7 @@ import org.neo4j.procedure.UserFunction;
 import sc.MapResult;
 import sc.MapProcess;
 
+
 public class Neo4jMqtt {
 
     private static final MapProcess mqttBrokersMap = new MapProcess();

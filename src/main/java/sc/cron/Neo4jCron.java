@@ -32,6 +32,7 @@ import sc.MapResult;
 import sc.VirtualNode;
 import sc.Util;
 
+
 public class Neo4jCron {
 
     private static final MapProcess cronMap = new MapProcess();

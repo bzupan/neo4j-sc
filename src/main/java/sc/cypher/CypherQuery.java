@@ -25,6 +25,7 @@ import org.neo4j.procedure.Procedure;
 
 import sc.MapResult;
 
+
 public class CypherQuery {
 
     private static final ArrayList<Map<String, Object>> cypherQueryList = new ArrayList<Map<String, Object>>();
