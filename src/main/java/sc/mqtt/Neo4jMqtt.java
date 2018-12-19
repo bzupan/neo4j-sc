@@ -35,7 +35,7 @@ import org.neo4j.procedure.Description;
 import org.neo4j.procedure.Name;
 import org.neo4j.procedure.UserFunction;
 
-import apoc.result.MapResult;
+import sc.MapResult;
 import sc.MapProcess;
 
 public class Neo4jMqtt {

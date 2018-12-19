@@ -1,14 +1,15 @@
 package sc;
 
-import apoc.result.VirtualNode;
-import apoc.util.Util;
+import sc.VirtualNode;
+import sc.Util;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
-import apoc.result.VirtualNode;
+
 
 public class MapProcess {
 

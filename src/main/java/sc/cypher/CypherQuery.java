@@ -23,7 +23,7 @@ import org.neo4j.graphdb.Transaction;
 import org.neo4j.procedure.Mode;
 import org.neo4j.procedure.Procedure;
 
-import apoc.result.MapResult;
+import sc.MapResult;
 
 public class CypherQuery {
 
