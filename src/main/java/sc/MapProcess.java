@@ -10,6 +10,11 @@ import java.util.Map;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 
+import sc.MapProcess;
+import sc.MapResult;
+
+import sc.VirtualNode;
+import sc.Util;
 
 public class MapProcess {
 
@@ -67,6 +72,25 @@ public class MapProcess {
         return listMap;
     }
 
+    public ArrayList<Node> getListVnodesFromMapAll(String label, GraphDatabaseService db) {
+
+        List<String> mapKeys = new ArrayList(map.keySet());
+        ArrayList<Node> listMap = new ArrayList();
+
+        for (int i = 0; i < mapKeys.size(); i++) {
+            Map<String, Object> mapTmp = (Map) map.get(mapKeys.get(i));
+
+            List<String> labelNames = new ArrayList();
+            labelNames.add(label); // ['Label'];
+            Map<String, Object> props = cleanObject.cleanMap(mapTmp);
+            props.put("name", mapTmp);
+            props.put("type", label);
+            listMap.add(new VirtualNode(Util.labels(labelNames), props, db));
+
+        }
+        return listMap;
+    }
+
     public ArrayList<Map<String, Object>> getListFromMap() {
         List<String> mapKeys = new ArrayList(map.keySet());
         ArrayList<Map<String, Object>> listMap = new ArrayList();
@@ -101,7 +125,7 @@ public class MapProcess {
             return mapTmp;
         }
 
-        public ArrayList<Node> cleanNodeList(final Map<String, Object> mapInput, List<String> labelNames ,GraphDatabaseService db) {
+        public ArrayList<Node> cleanNodeList(final Map<String, Object> mapInput, List<String> labelNames, GraphDatabaseService db) {
             final Map<String, Object> mapTmp = new HashMap<String, Object>();
             final List<String> mapKeys = new ArrayList<String>(mapInput.keySet());
             final ArrayList<Node> nodes = new ArrayList();
@@ -114,9 +138,9 @@ public class MapProcess {
                         || mapObject instanceof Double
                         || mapObject instanceof Map) {
                     mapTmp.put(mapKeys.get(i), mapObject);
-                   
+
                 }
-                 nodes.add( new VirtualNode(Util.labels(labelNames), mapTmp, db));
+                nodes.add(new VirtualNode(Util.labels(labelNames), mapTmp, db));
             }
             return nodes;
         }
