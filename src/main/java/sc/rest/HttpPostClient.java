@@ -17,6 +17,7 @@ import com.google.gson.Gson;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 
 import javax.net.ssl.SSLContext;
 
@@ -38,7 +39,6 @@ import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.SSLContextBuilder;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 
-
 /**
  * post from Neo4j
  */
@@ -50,6 +50,197 @@ public class HttpPostClient {
     @Context
     public Log log;
 
+    @UserFunction
+    @Description(
+            "// - return node post response "
+            + "MATCH MATCH ()-[l]->()HERE ID(l)=434 "
+            + "RETURN sc.rest.jsonPost( "
+            + "\"http://127.0.0.1/restTest\",  "
+            + "l "
+            + "{enableInsecureHttps: false, enableErrorMessage:false} "
+            + ")  n"
+            + "AS postResponseNode"
+    )
+    public Map<String, Object> jsonPost(
+            @Name("url") String url,
+            @Name("params") Object params,
+            @Name(value = "httpClientOptions", defaultValue = httpClientProperties) Map<String, Object> httpClientOptions
+    ) {
+        // --- prepere rpc request input
+        Map<String, Object> jsonResponse = null;
+        Map<String, Object> jsonParams = new HashMap();
+
+        if (params instanceof Map) {
+            jsonParams = (Map<String, Object>) params;
+        } else if (params instanceof Node) {
+            jsonParams = (Map<String, Object>) ((Node) params).getAllProperties();
+        } else if (params instanceof Relationship) {
+            jsonParams = (Map<String, Object>) ((Relationship) params).getAllProperties();
+        } else {
+            if (httpClientOptions.get("enableErrorMessage").equals(true)) {
+                jsonResponse = new HashMap();
+                jsonResponse.put("error", "http post request error - wrong request Map, Node or Relationship expected - got: " + params);
+                return (Map<String, Object>) jsonResponse;
+            } else {
+                return null;
+            }
+
+        }
+
+        try {
+            jsonResponse = http.post(url, jsonParams, httpClientOptions);
+            log.debug("sc.rest.httpPostRelationship - input: " + url.toString() + " " + jsonParams.toString() + " " + httpClientOptions.toString() + " " + jsonResponse.toString());
+            return (Map<String, Object>) jsonResponse;
+
+        } catch (Exception ex) {
+            log.error("sc.rest.httpPostRelationship - input: " + url.toString() + " " + jsonParams.toString() + " " + httpClientOptions.toString() + " " + ex.toString());
+            if (httpClientOptions.get("enableErrorMessage").equals(true)) {
+                jsonResponse = new HashMap();
+                jsonResponse.put("error", "http post error: " + ex.toString());
+                return (Map<String, Object>) jsonResponse;
+            } else {
+                return null;
+            }
+        }
+    }
+
+    @UserFunction
+    @Description(
+            "// - return json post response "
+            + "RETURN sc.rest.jsonRpc2('https://10.20.36.110:10443/jsonRpc2RestPost', 'pingIpAddress', {ipAddress:'8.8.8.8'},{enableInsecureHttps: true, enableErrorMessage:true}) AS postResponse"
+    )
+    public Map<String, Object> jsonRpc2(
+            @Name("jsonRpc2Url") String jsonRpc2Url,
+            @Name("method") String method,
+            @Name("params") Object params,
+            @Name(value = "httpClientOptions", defaultValue = httpClientProperties) Map<String, Object> httpClientOptions
+    ) {
+        // --- prepere rpc request input
+        Map<String, Object> jsonRpc2Request = new HashMap();
+        Map<String, Object> jsonRpc2response = null;
+        Random jsonRpc2Id = new Random();
+        Map<String, Object> jsonRpc2Params = new HashMap();
+
+        if (params instanceof Map) {
+            jsonRpc2Params = (Map<String, Object>) params;
+        } else if (params instanceof Node) {
+            jsonRpc2Params = (Map<String, Object>) ((Node) params).getAllProperties();
+        } else if (params instanceof Relationship) {
+            jsonRpc2Params = (Map<String, Object>) ((Relationship) params).getAllProperties();
+        } else {
+            if (httpClientOptions.get("enableErrorMessage").equals(true)) {
+                jsonRpc2response = new HashMap();
+                jsonRpc2response.put("error", "http post request error - wrong request Map, Node or Relationship expected - got: " + params);
+                return (Map<String, Object>) jsonRpc2response;
+            } else {
+                return null;
+            }
+
+        }
+
+        jsonRpc2Request.put("jsonrpc", "2.0");
+        jsonRpc2Request.put("method", method);
+        jsonRpc2Request.put("params", jsonRpc2Params);
+        jsonRpc2Request.put("id", jsonRpc2Id.nextInt());
+
+        try {
+            jsonRpc2response = http.post(jsonRpc2Url, jsonRpc2Request, httpClientOptions);
+            log.debug("sc.rest.httpPostRelationship - input: " + jsonRpc2Url.toString() + " " + jsonRpc2Request.toString() + " " + httpClientOptions.toString() + " " + jsonRpc2response.toString());
+
+            if (!(jsonRpc2response.get("result") == null)) {
+                return (Map<String, Object>) jsonRpc2response.get("result");
+            } else {
+                log.error("sc.rest.httpPostRelationship - input: " + jsonRpc2Url.toString() + " " + jsonRpc2Request.toString() + " " + httpClientOptions.toString() + " " + jsonRpc2response.toString());
+                if (httpClientOptions.get("enableErrorMessage").equals(true)) {
+                    return (Map<String, Object>) jsonRpc2response;
+                } else {
+                    return null;
+                }
+            }
+
+        } catch (Exception ex) {
+            log.error("sc.rest.httpPostRelationship - input: " + jsonRpc2Url.toString() + " " + jsonRpc2Request.toString() + " " + httpClientOptions.toString() + " " + ex.toString());
+            if (httpClientOptions.get("enableErrorMessage").equals(true)) {
+                jsonRpc2response = new HashMap();
+                jsonRpc2response.put("error", "http post error: " + ex.toString());
+                return (Map<String, Object>) jsonRpc2response;
+            } else {
+                return null;
+            }
+        }
+    }
+
+    // --- http https post
+    public static class HttpPostJson {
+
+        CloseableHttpClient httpClientSecure;
+        CloseableHttpClient httpClientInsecure;
+
+        public HttpPostJson() {
+            try {
+                // --- httpClient insecure
+                final SSLContext sslContext = new SSLContextBuilder()
+                        .loadTrustMaterial(null, (x509CertChain, authType) -> true)
+                        .build();
+                httpClientInsecure = HttpClientBuilder.create()
+                        .setSSLContext(sslContext)
+                        .setConnectionManager(
+                                new PoolingHttpClientConnectionManager(
+                                        RegistryBuilder.<ConnectionSocketFactory>create()
+                                                .register("http", PlainConnectionSocketFactory.INSTANCE)
+                                                .register("https", new SSLConnectionSocketFactory(sslContext,
+                                                        NoopHostnameVerifier.INSTANCE))
+                                                .build()
+                                ))
+                        .build();
+            } catch (Exception ex) {
+                System.out.println("sc.rest.httpPostRelationship - error: " + ex.toString());
+            }
+
+            // --- httpClient secure
+            httpClientSecure = HttpClientBuilder.create().build();
+        }
+
+        public Map<String, Object> post(String url, Object inputObject, Map<String, Object> httpClientOptions) throws JsonProcessingException, UnsupportedEncodingException, IOException {
+
+            CloseableHttpClient httpClient;
+
+            // -- check for client type
+            if (httpClientOptions.get("enableInsecureHttps").equals(false)) {
+                httpClient = httpClientSecure;
+            } else {
+                httpClient = httpClientInsecure;
+            }
+
+            // --- result variables
+            Map<String, Object> httpClientResultMap = new HashMap<String, Object>();
+
+            // --- http post
+            // --- Object to JSON
+            ObjectMapper mapper = new ObjectMapper();
+            String jsonInString = mapper.writeValueAsString(inputObject);
+
+            // --- post
+            HttpPost postRequest = new HttpPost(url);
+            postRequest.setEntity(new StringEntity(jsonInString));
+            postRequest.setHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+            CloseableHttpResponse httpResponse = httpClient.execute(postRequest);
+
+            // --- response
+            String content = EntityUtils.toString(httpResponse.getEntity());
+            int statusCode = httpResponse.getStatusLine().getStatusCode();
+
+            httpClientResultMap = new Gson().fromJson(content.toString(), Map.class);
+
+            // --- return result
+            return httpClientResultMap;
+
+        }
+    }
+
+}
+
+/*
     @UserFunction
     @Description(
             "// - return json post response "
@@ -132,7 +323,6 @@ public class HttpPostClient {
             log.debug("sc.rest.httpPostRelationship - input: " + url.toString() + " " + relationship.toString() + " " + httpClientOptions.toString());
         } catch (Exception ex) {
 
-
             if (httpClientOptions.get("enableErrorMessage").equals(true)) {
                 response = new HashMap();
                 response.put("error", "http post error: " + ex.toString());
@@ -143,72 +333,4 @@ public class HttpPostClient {
         }
         return response;
     }
-
-    // --- http https post
-    public static class HttpPostJson {
-
-        CloseableHttpClient httpClientSecure;
-        CloseableHttpClient httpClientInsecure;
-
-        public HttpPostJson() {
-            try {
-                // --- httpClient insecure
-                final SSLContext sslContext = new SSLContextBuilder()
-                        .loadTrustMaterial(null, (x509CertChain, authType) -> true)
-                        .build();
-                httpClientInsecure = HttpClientBuilder.create()
-                        .setSSLContext(sslContext)
-                        .setConnectionManager(
-                                new PoolingHttpClientConnectionManager(
-                                        RegistryBuilder.<ConnectionSocketFactory>create()
-                                                .register("http", PlainConnectionSocketFactory.INSTANCE)
-                                                .register("https", new SSLConnectionSocketFactory(sslContext,
-                                                        NoopHostnameVerifier.INSTANCE))
-                                                .build()
-                                ))
-                        .build();
-            } catch (Exception ex) {
-                System.out.println("sc.rest.httpPostRelationship - error: " + ex.toString());
-            }
-
-            // --- httpClient secure
-            httpClientSecure = HttpClientBuilder.create().build();
-        }
-
-        public Map<String, Object> post(String url, Object inputObject, Map<String, Object> httpClientOptions) throws JsonProcessingException, UnsupportedEncodingException, IOException {
-
-            CloseableHttpClient httpClient;
-
-            // -- check for client type
-            if (httpClientOptions.get("enableInsecureHttps").equals(false)) {
-                httpClient = httpClientSecure;
-            } else {
-                httpClient = httpClientInsecure;
-            }
-
-            // --- result variables
-            Map<String, Object> httpClientResultMap = new HashMap<String, Object>();
-
-            // --- http post
-            // --- Object to JSON
-            ObjectMapper mapper = new ObjectMapper();
-            String jsonInString = mapper.writeValueAsString(inputObject);
-
-            // --- post
-            HttpPost postRequest = new HttpPost(url);
-            postRequest.setEntity(new StringEntity(jsonInString));
-            postRequest.setHeader(HttpHeaders.CONTENT_TYPE, "application/json");
-            CloseableHttpResponse httpResponse = httpClient.execute(postRequest);
-
-            // --- response
-            String content = EntityUtils.toString(httpResponse.getEntity());
-            int statusCode = httpResponse.getStatusLine().getStatusCode();
-
-            httpClientResultMap = new Gson().fromJson(content.toString(), Map.class);
-
-            // --- return result
-            return httpClientResultMap;
-
-        }
-    }
-}
+ */
