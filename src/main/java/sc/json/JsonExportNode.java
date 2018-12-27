@@ -29,7 +29,7 @@ public class JsonExportNode {
     public Log log;
 
     @UserFunction
-    @Description("MATCH (n) WHERE ID(n)= 123 RETURN sc.jsonExportNode(n)  - return node as json string")
+    @Description("MATCH (n) WHERE ID(n)= 123 RETURN sc.json.jsonExportNode(n)  - return node as json string")
     public String jsonExportNode(
             @Name("neo4jNode") Node neo4jNode
     ) throws MalformedURLException,
