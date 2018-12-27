@@ -191,12 +191,12 @@ public class Neo4jCron {
         log.debug("sc.cron.addCronNode " + name + " " + cronString + " " + cypherQuery + " " + cypherQueryParams.toString() + " " + cronParams.toString());
 
         ObjectMapper mapper = new ObjectMapper();
-
+        
         // --- add to DB
         String cypherString = "MERGE (n:" + cronNodeLabel + " {name:'" + name + "', type:'" + cronNodeLabel + "'}) "
                 + "SET n.cronString='" + cronString
                 + "', n.cronParams='" + mapper.writeValueAsString(cronParams)
-                + "', n.cypherQuery='" + cypherQuery
+                + "', n.cypherQuery='" + cypherQuery.replaceAll("'", "\\\\'")
                 + "', n.cypherParams='" + mapper.writeValueAsString(cypherQueryParams)
                 + "', n.cronStatus='initialized "
                 + "' RETURN n";

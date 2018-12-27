@@ -114,10 +114,11 @@ public class CypherQuery {
             @Name("cypherQuery") String cypherQuery
     ) {
         // --- add to DB
+        String cypherQueryModified = cypherQuery.replaceAll("'", "\\\\'");
         String cypherString = "MERGE (n:" + cypherQueryNodeLabel + " {name:'" + name + "', type:'" + cypherQueryNodeLabel + "'}) "
-                + "SET n.cypherQuery='" + cypherQuery + "' RETURN n";
+                + "SET n.cypherQuery='" + cypherQueryModified+ "' RETURN n";
 
-        log.debug("sc.cypher.addDb cypherString: " + cypherString);
+        log.info("sc.cypher.addDb cypherString: " + cypherQueryModified);
         log.info("sc.cypher.addDb: " + name);
         return runCypherQuery.executeQueryRaw(db, cypherString).stream().map(MapResult::new);
     }

@@ -15,7 +15,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.google.gson.Gson;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
@@ -104,12 +106,15 @@ public class HttpPostClient {
         }
     }
 
+    //   RETURN sc.rest.jsonRpc2('https://10.20.36.110:10443/jsonRpc2RestPost', 'pingIpAddress', {ipAddress:'8.8.8.8'},{enableInsecureHttps: true, enableErrorMessage:true}) AS postResponse
+// RETURN sc.rest.jsonRpc2('https://10.20.36.110:10443/jsonRpc2RestPost', 'scanIpNetwork', {ipNetwork:'10.20.36.0/24'},{enableInsecureHttps: true, enableErrorMessage:true}) AS postResponse
     @UserFunction
     @Description(
             "// - return json post response "
             + "RETURN sc.rest.jsonRpc2('https://10.20.36.110:10443/jsonRpc2RestPost', 'pingIpAddress', {ipAddress:'8.8.8.8'},{enableInsecureHttps: true, enableErrorMessage:true}) AS postResponse"
     )
-    public Map<String, Object> jsonRpc2(
+
+    public Object jsonRpc2(
             @Name("jsonRpc2Url") String jsonRpc2Url,
             @Name("method") String method,
             @Name("params") Object params,
@@ -148,7 +153,15 @@ public class HttpPostClient {
             log.debug("sc.rest.httpPostRelationship - input: " + jsonRpc2Url.toString() + " " + jsonRpc2Request.toString() + " " + httpClientOptions.toString() + " " + jsonRpc2response.toString());
 
             if (!(jsonRpc2response.get("result") == null)) {
-                return (Map<String, Object>) jsonRpc2response.get("result");
+                Object jsonRpc2responseResult = jsonRpc2response.get("result");
+                if (jsonRpc2responseResult instanceof Map) {
+                    return (Map<String, Object>) jsonRpc2responseResult;
+                } else if (jsonRpc2responseResult instanceof ArrayList) {
+                    return (List<Map<String, Object>>) jsonRpc2responseResult;
+                } else {
+                    return jsonRpc2responseResult;
+                }
+
             } else {
                 log.error("sc.rest.httpPostRelationship - input: " + jsonRpc2Url.toString() + " " + jsonRpc2Request.toString() + " " + httpClientOptions.toString() + " " + jsonRpc2response.toString());
                 if (httpClientOptions.get("enableErrorMessage").equals(true)) {
