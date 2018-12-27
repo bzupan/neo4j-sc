@@ -1,5 +1,7 @@
 package sc.cypher;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -23,13 +25,19 @@ import org.neo4j.graphdb.Transaction;
 import org.neo4j.procedure.Mode;
 import org.neo4j.procedure.Procedure;
 
+import sc.MapProcess;
 import sc.MapResult;
-
+import sc.RunCypherQuery;
 
 public class CypherQuery {
 
     private static final ArrayList<Map<String, Object>> cypherQueryList = new ArrayList<Map<String, Object>>();
-    
+
+    private static final MapProcess cypherQueryMap = new MapProcess();
+    private static final RunCypherQuery runCypherQuery = new RunCypherQuery();
+
+    private static final String cypherQueryNodeLabel = "CypherRunDb";
+
     @Context
     public Log log;
 
@@ -37,143 +45,148 @@ public class CypherQuery {
     public GraphDatabaseService db;
 
     // ----------------------------------------------------------------------------------
-    // list
+    // JAVA VM
     // ----------------------------------------------------------------------------------
     @UserFunction
-    @Description("RETURN sc.cypher.listVm() - list all CYPHER java VM calls")
-    public List< Map<String, Object>> listVm() {
-        return cypherQueryList; //.map(CronJob::new);
-    }
-
-    @UserFunction
-    @Description("RETURN sc.cypher.listDb() - list all CYPHER Neo4j DB calls")
-    public Map<String, Object> listDb() {
-        String cypherQueryString = "MATCH (n:CypherRunDb) RETURN n";
-
-        log.info("runCypherNode - cypherFunctionQuery : " + cypherQueryString);
-        Map<String, Object> cypherResult = new HashMap<String, Object>();
-        try (Transaction tx = db.beginTx()) {
-            Result dbResult = db.execute(cypherQueryString);
-            //log.info("runCypherNode - cypherFunctionQuery : " + " " + dbResult.resultAsString());
-
-            if (dbResult.hasNext() == true) {
-                // --- ger first row
-                Map<String, Object> row = dbResult.next();
-                for (Entry<String, Object> column : row.entrySet()) {
-                    log.info("header" + column.getKey());
-                    log.info("data" + column.getValue().toString());
-                    List<Object> data = new ArrayList<Object>();
-                    data.add(column.getValue());
-                    cypherResult.put(column.getKey(), data);
-                }
-
-                // --- process rest of the rows
-                while (dbResult.hasNext()) {
-                    Map<String, Object> rowNext = dbResult.next();
-                    for (Entry<String, Object> column : rowNext.entrySet()) {
-                        log.info("header" + column.getKey().toString());
-                        log.info("data" + column.getValue().toString());
-                        List<Object> data = new ArrayList<Object>();
-                        data = (List<Object>) cypherResult.get(column.getKey());
-                        data.add(column.getValue());
-                        cypherResult.put(column.getKey(), data);
-                    }
-                }
-            }
-            tx.success();
-            return cypherResult;
-        }
-    }
-
-    // ----------------------------------------------------------------------------------
-    // add
-    // ----------------------------------------------------------------------------------
-    @UserFunction
-    @Description("RETURN sc.cypher.addVm('name', 'cypher query', cypher query parameters') - add CYPHER Java VM calls")
+    @Description("RETURN sc.cypher.addVm('name', 'MATCH (n) RETURN n') // add CYPHER Java VM calls")
     public Map<String, Object> addVm(
             @Name("name") String name,
-            @Name("query") String query
+            @Name("cypherQuery") String cypherQuery
     ) {
-        Map<String, Object> cypherQueryMap = getMapFromListtByKeyValue(cypherQueryList, "name", name);
-        //log.info(mapNode.toString()+ " " + mapNode.get("index"));
-        if (cypherQueryMap != null) {
-            log.info(cypherQueryMap.toString() + " update " + name);
-            cypherQueryMap.put("query", query);
-            //cypherQueryMap.put("parameters", name);
-        } else {
-            cypherQueryMap = new HashMap<String, Object>();
-            log.info(cypherQueryMap.toString() + " create " + name);
+        // add crontask to cron map
+        Map<String, Object> cypherObjectTmp = new HashMap<String, Object>();
+        cypherObjectTmp.put("name", name);
+        cypherObjectTmp.put("cypherQuery", cypherQuery);
+        cypherQueryMap.addToMap(name, cypherObjectTmp);
 
-            cypherQueryMap.put("name", name);
-            cypherQueryMap.put("query", query);
-            //cypherQueryMap.put("parameters", name);
-            cypherQueryList.add(cypherQueryMap);
-        }
-        return cypherQueryMap;
+        log.debug("sc.cypher.addVm: " + cypherObjectTmp.toString());
+        log.info("sc.cypher.addVm: " + name);
+        return cypherQueryMap.getMapElementByNameClean(name);
     }
 
-    @Procedure(mode = Mode.WRITE) //name = "sc.runCypherNodeProcedure",
-    @Description("RETURN sc.cypher.addDb('name', 'cypher query', cypher query parameters') - add CYPHER Neo4j DB calls")
-    public Stream<MapResult> addDb(
+    @UserFunction
+    @Description("RETURN sc.cypher.listVm() // list all CYPHER java VM calls")
+    public List< Map<String, Object>> listVm() {
+        log.debug("sc.cypher.listVm: " + cypherQueryMap.getListFromMapAllClean().toString());
+        return cypherQueryMap.getListFromMapAllClean(); //.map(CronJob::new);
+    }
+
+    @Procedure(mode = Mode.WRITE)
+    @Description("CALL sc.cypher.runVm('name', {object:'params'}) // run CYPHER from Java VM)")
+    public Stream<MapResult> runVm(
             @Name("name") String name,
-            @Name("query") String query
+            @Name("cypherParams") Map<String, Object> cypherParams
     ) {
-
-        String cypherQueryString = "MERGE (n:CypherRunDb {name:'" + name + "' , type:'CypherRunDb'}) SET n.query='" + query + "' RETURN n";
-
-        log.info("sc.cypher.addDb name / query: " + cypherQueryString);
-        try (Transaction tx = db.beginTx()) {
-            Result dbResult = db.execute(cypherQueryString);
-            tx.success();
-            return dbResult.stream().map(MapResult::new);
+        Map<String, Object> cypherObjectTmp = cypherQueryMap.getMapElementByName(name);
+        if (!(cypherObjectTmp == null)) {
+            log.debug("sc.cypher.runVm: " + cypherObjectTmp.toString());
+            log.info("sc.cypher.runVm: " + name);
+            return runCypherQuery.executeQueryRaw(db, (String) cypherObjectTmp.get("cypherQuery"), cypherParams).stream().map(MapResult::new);
+        } else {
+            log.info("sc.cypher.runVm: not exist - " + name);
+            return null;
         }
     }
 
-    // ----------------------------------------------------------------------------------
-    // delete
-    // ----------------------------------------------------------------------------------
     @UserFunction
     @Description("RETURN sc.cypher.deleteVm('name') - add CYPHER Java VM calls")
     public Map<String, Object> deleteVm(
             @Name("name") String name
     ) {
-        Map<String, Object> mapNode = getMapFromListtByKeyValue(cypherQueryList, "name", name);
-        //log.info(mapNode.toString()+ " " + mapNode.get("index"));
-        if (mapNode != null) {
-            log.info(mapNode.toString() + " remove " + mapNode.get("index"));
-            cypherQueryList.remove(mapNode);
+        Map<String, Object> cypherObjectTmp = cypherQueryMap.getMapElementByName(name);
+        if (!(cypherObjectTmp == null)) {
+            log.debug("sc.cypher.deleteVm: " + cypherObjectTmp.toString());
+            cypherQueryMap.removeFromMap(name);
+            log.info("sc.cypher.deleteVm: " + name);
+        } else {
+            log.info("sc.cypher.deleteVm: not exist - " + name);
         }
         return null;
     }
 
-        @Procedure(mode = Mode.WRITE) //name = "sc.runCypherNodeProcedure",
-    @Description("RETURN sc.cypher.deleteDb('name', 'cypher query', cypher query parameters') - add CYPHER Neo4j DB calls")
+    // ----------------------------------------------------------------------------------
+    // Neo4j DB
+    // ----------------------------------------------------------------------------------
+    @Procedure(mode = Mode.WRITE) //name = "sc.runCypherNodeProcedure",
+    @Description("CALL sc.cypher.addDb('cypherRunDb', 'MATCH (n) RETURN n')  //add CYPHER Neo4j DB calls")
+    public Stream<MapResult> addDb(
+            @Name("name") String name,
+            @Name("cypherQuery") String cypherQuery
+    ) {
+        // --- add to DB
+        String cypherString = "MERGE (n:" + cypherQueryNodeLabel + " {name:'" + name + "', type:'" + cypherQueryNodeLabel + "'}) "
+                + "SET n.cypherQuery='" + cypherQuery + "' RETURN n";
+
+        log.debug("sc.cypher.addDb cypherString: " + cypherString);
+        log.info("sc.cypher.addDb: " + name);
+        return runCypherQuery.executeQueryRaw(db, cypherString).stream().map(MapResult::new);
+    }
+
+    @UserFunction
+    @Description("RETURN sc.cypher.listDb() - list all CYPHER Neo4j DB calls")
+    public Object listDb() {
+        // WITH   sc.cron.listDb() AS nn
+        // UNWIND nn AS n Return n
+        String cypherString = "MATCH (n:" + cypherQueryNodeLabel + ") RETURN n";
+        log.debug("sc.cypher.listDb cypherString: " + cypherString);
+
+        List<Node> cypherNodes = (List<Node>) runCypherQuery.executeQueryMap(db, cypherString).get("n");
+        for (int i = 0; i < cypherNodes.size(); i++) {
+            //cypherNodes.get(i).setProperty("aaa", i);
+        }
+
+        return cypherNodes;
+    }
+
+    @Procedure(mode = Mode.WRITE)
+    @Description("CALL sc.cypher.runDb('cypherRunDb', {object:'params'}) // rrun CYPHER from Neo4j DB)")
+    public Stream<MapResult> runDb(
+            @Name("name") String name,
+            @Name(value = "cypherParams", defaultValue = "{}") Map<String, Object> cypherParams
+    ) {
+
+        // --- get node
+        String cypherString = "MATCH (n:" + cypherQueryNodeLabel + " {name:'" + name + "', type:'" + cypherQueryNodeLabel + "'}) RETURN n";
+        log.debug("sc.cypher.runDb cypherString get cron node: " + cypherString);
+        List<Node> cypherNodes = (List<Node>) runCypherQuery.executeQueryMap(db, cypherString).get("n");
+
+        // --- get query
+        Map<String, Object> cypherNodeProperties = cypherNodes.get(0).getAllProperties();
+        String cypherQuery = (String) cypherNodeProperties.get("cypherQuery");
+
+        log.debug("sc.cypher.runDb cypherString to run: " + cypherString + cypherParams.toString());
+        log.info("sc.cypher.runDb: " + name);
+        return runCypherQuery.executeQueryRaw(db, cypherQuery, cypherParams).stream().map(MapResult::new);
+    }
+
+    @Procedure(mode = Mode.WRITE) //name = "sc.runCypherNodeProcedure",
+    @Description("CALL sc.cypher.deleteDb('cypherRunDb') - add CYPHER Neo4j DB calls")
     public Stream<MapResult> deleteDb(
             @Name("name") String name
     ) {
-        String cypherQueryString = "MATCH (n:CypherRunDb) WHERE n.name='" + name + "' DETACH DELETE n";
-        log.info("sc.cypher.deleteDb name / query: " + cypherQueryString);
-        try (Transaction tx = db.beginTx()) {
-            Result dbResult = db.execute(cypherQueryString);
-            tx.success();
-            return dbResult.stream().map(MapResult::new);
-        }
+        // --- remove node
+        String cypherString = "MATCH (n:" + cypherQueryNodeLabel + " {name:'" + name + "', type:'" + cypherQueryNodeLabel + "'}) DETACH DELETE n";
+        log.debug("sc.cypher.deleteDb cypherString: " + cypherString);
+
+        runCypherQuery.executeQueryRaw(db, cypherString);
+        log.info("sc.cypher.deleteDb: " + name);
+        return null;
     }
-    
+
     // ----------------------------------------------------------------------------------
     // run
     // ----------------------------------------------------------------------------------
     @Procedure(mode = Mode.WRITE)
-    @Description("RETURN sc.cypher.runProcedureVm(\"stringFunctionName\", {object:\"params\"} - run CYPHER from Java VM)")
+    @Description("CALL sc.cypher.run(\"stringFunctionName\", {object:\"params\"} - run CYPHER from Java VM)")
     public Stream<MapResult> run(
-            @Name("cypherQueryString") String cypherQueryString,
-            @Name("cypherParamsObject") Map<String, Object> cypherParamsObject
+            @Name("cypherQuery") String cypherQuery,
+            @Name("cypherParams") Map<String, Object> cypherParams
     ) {
         //log.info(mapNode.toString()+ " " + mapNode.get("index"));
-        if (cypherQueryString != null) {
-            log.info("runCypherNode - cypherFunctionQuery : " + cypherQueryString);
+        if (cypherQuery != null) {
+            log.info("runCypherNode - cypherFunctionQuery: " + cypherQuery);
             try (Transaction tx2 = db.beginTx()) {
-                Result dbResult = db.execute(cypherQueryString, cypherParamsObject);
+                Result dbResult = db.execute(cypherQuery, cypherParams);
                 tx2.success();
                 return dbResult.stream().map(MapResult::new);
             }
@@ -182,91 +195,4 @@ public class CypherQuery {
         }
     }
 
-    @Procedure(mode = Mode.WRITE)
-    @Description("CALL sc.cypher.runVm(\"stringFunctionName\", {object:\"params\"} - run CYPHER from Java VM)")
-    public Stream<MapResult> runVm(
-            @Name("name") String name,
-            @Name("cypherFunctionParameters") Map<String, Object> cypherFunctionParameters
-    ) {
-
-        Map<String, Object> cypherQueryMap = getMapFromListtByKeyValue(cypherQueryList, "name", name);
-        //log.info(mapNode.toString()+ " " + mapNode.get("index"));
-        if (cypherQueryMap != null) {
-            log.info(cypherQueryMap.toString() + " update " + name);
-            // --- run cypher query string
-            String cypherFunctionQuery = cypherQueryMap.get("query").toString();
-
-            log.info("runCypherNode - cypherFunctionQuery : " + cypherFunctionQuery);
-
-            try (Transaction tx2 = db.beginTx()) {
-                Result dbResult = db.execute(cypherFunctionQuery, cypherFunctionParameters);
-                tx2.success();
-                return dbResult.stream().map(MapResult::new);
-            }
-
-        } else {
-            return null;
-        }
-    }
-
-    @Procedure(mode = Mode.WRITE)
-    @Description("RETURN sc.cypher.runProcedureDb(\"stringFunctionName\", {object:\"params\"} - rrun CYPHER from Neo4j DB)")
-    public Stream<MapResult> runDb(
-            @Name("cypherFunctionName") String cypherFunctionName,
-            @Name("cypherFunctionParameters") Map<String, Object> cypherFunctionParameters
-    ) {
-        // --- find node with cypher query from node name
-        String cypherQueryString = "MATCH (n:CypherRunDb) WHERE n.name=\"" + cypherFunctionName + "\" RETURN n.query";
-
-        log.info("runCypherNode - cypherFunctionQuery : " + cypherQueryString);
-
-        // --- get cypher query string
-        String cypherFunctionQuery = "null";
-        try (Transaction tx = db.beginTx()) {
-            Result result = db.execute(cypherQueryString);
-
-            // --- some debuging
-            String column = result.columns().get(0);
-            Map<String, Object> row1 = result.next();
-            cypherFunctionQuery = row1.get(column).toString();
-            tx.success();
-        }
-
-        // --- run cypher query string
-        try (Transaction tx2 = db.beginTx()) {
-            Result dbResult = db.execute(cypherFunctionQuery, cypherFunctionParameters);
-            tx2.success();
-            return dbResult.stream().map(MapResult::new);
-        }
-    }
-
-    // ----------------------------------------------------------------------------------
-    // util
-    // ----------------------------------------------------------------------------------
-    private static Map<String, Object> getMapFromListtByKeyValue(final ArrayList<Map<String, Object>> inputArray, String key, String value) {
-        Map<String, Object> cypherNodeTmp = null; //new HashMap<String, Object>();
-
-        for (int i = 0; i < inputArray.size(); ++i) {
-            System.out.println(key + " " + value);
-            Map<String, Object> arrElement = inputArray.get(i);
-            if (arrElement != null) {
-                if (arrElement.get(key) != null) {
-                    String currentKeyValue = arrElement.get(key).toString();
-                    //   arrElement
-                    //System.out.println(key + i);
-                    //System.out.println(inputArray.get(i).toString());
-                    System.out.println(" - " + currentKeyValue + " " + value);
-                    if (currentKeyValue.equals(value)) {
-                        System.out.println(" - -----------------------");
-                        cypherNodeTmp = arrElement;
-                        //cypherNodeTmp = new HashMap<String, Object>(arrElement);
-                        //cypherNodeTmp.put("index", i);
-                    } else {
-                        System.out.println(" - -");
-                    }
-                }
-            }
-        }
-        return cypherNodeTmp;
-    }
 }
