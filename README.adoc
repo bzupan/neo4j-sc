@@ -60,9 +60,9 @@ RETURN sc.rest.urlEncodeString('aaa.bbb@email.com {jsonString:"!"#$&/()"}') AS u
 ==== httpPostJson - function
 Run http/https json post and receive response from REST - based on Apache HttpComponents!
 
-- sc.rest.httpJsonPost("urlString\", {json document}) - return json document
-- sc.rest.httpPostNode("urlString", neo4jNode) - return json document
-- sc.rest.httpPostRelationship("urlString", neo4jRelationship) - return json document
+- sc.rest.jsonPost("urlString", {json document}) - return json document
+- sc.rest.jsonPost("urlString", neo4jNode) - return json document
+- sc.rest.jsonPost("urlString", neo4jRelationship) - return json document
 
 ====== Example
 node.js REST server
@@ -116,7 +116,7 @@ app.post('/restTest', function (req, res) {
 httpPostJson
 [source,cypher]
 ----
-RETURN sc.rest.httpPostJson("http://127.0.0.1:8080/restTest", {name:123}) AS postResponse
+RETURN sc.rest.jsonPost("http://127.0.0.1:8080/restTest", {name:123}) AS postResponse
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 +"postResponse"                                                        +
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -129,7 +129,7 @@ RETURN sc.rest.httpPostJson("http://127.0.0.1:8080/restTest", {name:123}) AS pos
 
 [source,cypher]
 ----
-WITH sc.rest.httpPostJson("https://127.0.0.1:8443/restTest", {name:123},{enableInsecureHttps: true, enableErrorMessage:true}) AS postResponse 
+WITH sc.rest.jsonPost("https://127.0.0.1:8443/restTest", {name:123},{enableInsecureHttps: true, enableErrorMessage:true}) AS postResponse 
 RETURN postResponse.array
 ----
 
@@ -138,7 +138,7 @@ RETURN postResponse.array
 https options
 [source,cypher]
 ----
-RETURN sc.rest.httpPostJson("https://127.0.0.1:8443/restTest", {name:123}) AS postResponse
+RETURN sc.rest.jsonPost("https://127.0.0.1:8443/restTest", {name:123}) AS postResponse
 ++++++++++++++++
 +"postResponse"+
 ++++++++++++++++
@@ -149,7 +149,7 @@ RETURN sc.rest.httpPostJson("https://127.0.0.1:8443/restTest", {name:123}) AS po
 
 [source,cypher]
 ----
-RETURN sc.rest.httpPostJson("https://127.0.0.1:8443/restTest", {name:123},{enableInsecureHttps: true}) AS postResponse
+RETURN sc.rest.jsonPost("https://127.0.0.1:8443/restTest", {name:123},{enableInsecureHttps: true}) AS postResponse
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 +"postResponse"                                                        +
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -162,7 +162,7 @@ RETURN sc.rest.httpPostJson("https://127.0.0.1:8443/restTest", {name:123},{enabl
 
 error handling
 [source,cypher]
-RETURN sc.rest.httpPostJson("https://127.0.0.1:8443/restTest", {name:123},{enableInsecureHttps: false, enableErrorMessage:false}) AS postResponse
+RETURN sc.rest.jsonPost("https://127.0.0.1:8443/restTest", {name:123},{enableInsecureHttps: false, enableErrorMessage:false}) AS postResponse
 ++++++++++++++++
 +"postResponse"+
 ++++++++++++++++
@@ -173,7 +173,7 @@ RETURN sc.rest.httpPostJson("https://127.0.0.1:8443/restTest", {name:123},{enabl
 
 [source,cypher]
 ----
-RETURN sc.rest.httpPostJson("https://127.0.0.1:8443/restTest", {name:123},{enableInsecureHttps: false, enableErrorMessage:true}) AS postResponse
+RETURN sc.rest.jsonPost("https://127.0.0.1:8443/restTest", {name:123},{enableInsecureHttps: false, enableErrorMessage:true}) AS postResponse
 +++++++++++++++++++++++++
 +"postResponse"         +
 +++++++++++++++++++++++++
@@ -188,7 +188,7 @@ MATCH (n:scTestNode) DETACH DELETE n;
 CREATE (n:scTestNode {string:"string", integer:123, boolean:true, float:123.456}) RETURN n;
 
 MATCH (n:scTestNode)
-RETURN sc.rest.httpPostNode(
+RETURN sc.rest.jsonPost(
    "http://127.0.0.1/restTest", 
    n,
    {enableInsecureHttps: false, enableErrorMessage:false}
@@ -215,7 +215,7 @@ MATCH ()-[r:scTesttRelationship]->() DELETE r
 CREATE (:scTestNode)-[r:scTesttRelationship {string:"string", integer:123, boolean:true, float:123.456}]->(:scTestNode) RETURN r
 
 MATCH ()-[r:scTesttRelationship]->()  
-RETURN sc.rest.httpPostRelationship("http://127.0.0.1/restTest", r) AS postResponseRelationship
+RETURN sc.rest.jsonPost("http://127.0.0.1/restTest", r) AS postResponseRelationship
 ----
 [source,cypher]
 ----

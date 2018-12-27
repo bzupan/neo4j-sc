@@ -5,7 +5,7 @@
 
     <groupId>org.sc.neo4j</groupId>
     <artifactId>sc-neo4j</artifactId>
-    <version>3.5.0.1</version>
+    <version>3.5.0.2</version>
 
     <packaging>jar</packaging>
     <name>Neo4j Procedure Functions</name>
