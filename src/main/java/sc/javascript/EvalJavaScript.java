@@ -16,6 +16,8 @@ import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 
 import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.Result;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.logging.Log;
@@ -24,7 +26,6 @@ import org.neo4j.procedure.Mode;
 import org.neo4j.procedure.Procedure;
 
 import sc.MapResult;
-
 
 /**
  * This is .
@@ -45,7 +46,7 @@ public class EvalJavaScript {
     @UserFunction
     @Description("RETURN sc.javascript.listVm() - list all JavaScript java VM calls")
     public List< Map<String, Object>> listVm() {
-        return javaScriptList; 
+        return javaScriptList;
     }
 
     @UserFunction
@@ -116,7 +117,7 @@ public class EvalJavaScript {
         return cypherQueryMap;
     }
 
-    @Procedure(mode = Mode.WRITE) 
+    @Procedure(mode = Mode.WRITE)
     @Description("RETURN sc.javascript.addDb('name', 'javascript', javascript parameters') - add JavaScript Neo4j DB calls")
     public Stream<MapResult> addDb(
             @Name("name") String name,
@@ -172,11 +173,33 @@ public class EvalJavaScript {
     public Object run(
             @Name("jsScript") String jsScript,
             @Name("jsParams") Object jsParams
-    ) throws ScriptException, NoSuchMethodException {
-        Object javaScriptResult = null;
-        log.info("sc.javascript.run : " + jsScript);
-        javaScriptResult = evalJavascript(jsScript, jsParams);
-        return javaScriptResult;
+    ) {
+        try {
+            Object javaScriptResult = null;
+            log.debug("sc.javascript.run jsScript: " + jsScript + " jsParams: " + jsParams.toString());
+            Map<String, Object> jsParamsMap;
+            
+            if (jsParams instanceof Map) {
+                jsParamsMap = (Map<String, Object>) jsParams;
+                javaScriptResult = evalJavascript(jsScript, jsParamsMap);
+                return javaScriptResult;
+            } else if (jsParams instanceof Node) {
+                jsParamsMap = (Map<String, Object>) ((Node) jsParams).getAllProperties();
+                javaScriptResult = evalJavascript(jsScript, jsParamsMap);
+                return javaScriptResult;
+            } else if (jsParams instanceof Relationship) {
+                jsParamsMap = (Map<String, Object>) ((Relationship) jsParams).getAllProperties();
+                javaScriptResult = evalJavascript(jsScript, jsParamsMap);
+                return javaScriptResult;
+            } else {
+                javaScriptResult = evalJavascript(jsScript, jsParams);
+                return javaScriptResult;
+            }
+
+        } catch (Exception ex) {
+            log.error("sc.javascript.run error: " + ex.toString());
+            return ex.toString();
+        }
     }
 
     @UserFunction
