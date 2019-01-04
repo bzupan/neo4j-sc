@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLContext;
 
@@ -27,6 +28,7 @@ import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.HttpClientBuilder;
@@ -90,12 +92,12 @@ public class HttpPostClient {
         }
 
         try {
-            jsonResponse = http.post(url, jsonParams, httpClientOptions);
-            log.debug("sc.rest.httpPostRelationship - input: " + url.toString() + " " + jsonParams.toString() + " " + httpClientOptions.toString() + " " + jsonResponse.toString());
+            jsonResponse = http.postTimeout(url, jsonParams, httpClientOptions);
+            log.debug("sc.rest.jsonPost - input: " + url.toString() + " " + jsonParams.toString() + " " + httpClientOptions.toString() + " " + jsonResponse.toString());
             return (Map<String, Object>) jsonResponse;
 
         } catch (Exception ex) {
-            log.error("sc.rest.httpPostRelationship - input: " + url.toString() + " " + jsonParams.toString() + " " + httpClientOptions.toString() + " " + ex.toString());
+            log.error("sc.rest.jsonPost - input: " + url.toString() + " " + jsonParams.toString() + " " + httpClientOptions.toString() + " " + ex.toString());
             if (httpClientOptions.get("enableErrorMessage").equals(true)) {
                 jsonResponse = new HashMap();
                 jsonResponse.put("error", "http post error: " + ex.toString());
@@ -107,7 +109,7 @@ public class HttpPostClient {
     }
 
     //   RETURN sc.rest.jsonRpc2('https://10.20.36.110:10443/jsonRpc2RestPost', 'pingIpAddress', {ipAddress:'8.8.8.8'},{enableInsecureHttps: true, enableErrorMessage:true}) AS postResponse
-// RETURN sc.rest.jsonRpc2('https://10.20.36.110:10443/jsonRpc2RestPost', 'scanIpNetwork', {ipNetwork:'10.20.36.0/24'},{enableInsecureHttps: true, enableErrorMessage:true}) AS postResponse
+    // RETURN sc.rest.jsonRpc2('https://10.20.36.110:10443/jsonRpc2RestPost', 'scanIpNetwork', {ipNetwork:'10.20.36.0/24'},{enableInsecureHttps: true, enableErrorMessage:true}) AS postResponse
     @UserFunction
     @Description(
             "// - return json post response "
@@ -149,8 +151,8 @@ public class HttpPostClient {
         jsonRpc2Request.put("id", jsonRpc2Id.nextInt());
 
         try {
-            jsonRpc2response = http.post(jsonRpc2Url, jsonRpc2Request, httpClientOptions);
-            log.debug("sc.rest.httpPostRelationship - input: " + jsonRpc2Url.toString() + " " + jsonRpc2Request.toString() + " " + httpClientOptions.toString() + " " + jsonRpc2response.toString());
+            jsonRpc2response = http.postTimeout(jsonRpc2Url, jsonRpc2Request, httpClientOptions);
+            log.debug("sc.rest.jsonRpc2 - input: " + jsonRpc2Url.toString() + " " + jsonRpc2Request.toString() + " " + httpClientOptions.toString() + " " + jsonRpc2response.toString());
 
             if (!(jsonRpc2response.get("result") == null)) {
                 Object jsonRpc2responseResult = jsonRpc2response.get("result");
@@ -163,7 +165,7 @@ public class HttpPostClient {
                 }
 
             } else {
-                log.error("sc.rest.httpPostRelationship - input: " + jsonRpc2Url.toString() + " " + jsonRpc2Request.toString() + " " + httpClientOptions.toString() + " " + jsonRpc2response.toString());
+                log.error("sc.rest.jsonRpc2 response error: " + jsonRpc2Url.toString() + " " + jsonRpc2Request.toString() + " " + httpClientOptions.toString() + " " + jsonRpc2response.toString());
                 if (httpClientOptions.get("enableErrorMessage").equals(true)) {
                     return (Map<String, Object>) jsonRpc2response;
                 } else {
@@ -172,7 +174,7 @@ public class HttpPostClient {
             }
 
         } catch (Exception ex) {
-            log.error("sc.rest.httpPostRelationship - input: " + jsonRpc2Url.toString() + " " + jsonRpc2Request.toString() + " " + httpClientOptions.toString() + " " + ex.toString());
+            log.error("sc.rest.jsonRpc2 http error: " + jsonRpc2Url.toString() + " " + jsonRpc2Request.toString() + " " + httpClientOptions.toString() + " " + ex.toString());
             if (httpClientOptions.get("enableErrorMessage").equals(true)) {
                 jsonRpc2response = new HashMap();
                 jsonRpc2response.put("error", "http post error: " + ex.toString());
@@ -205,13 +207,34 @@ public class HttpPostClient {
                                                         NoopHostnameVerifier.INSTANCE))
                                                 .build()
                                 ))
+                        
+                        .setMaxConnTotal(20)
+                        .setMaxConnPerRoute(20)
+                        .setConnectionTimeToLive(300000, TimeUnit.MILLISECONDS)
                         .build();
             } catch (Exception ex) {
                 System.out.println("sc.rest.httpPostRelationship - error: " + ex.toString());
             }
 
             // --- httpClient secure
-            httpClientSecure = HttpClientBuilder.create().build();
+            httpClientSecure = HttpClientBuilder
+                    .create()
+                    .setConnectionTimeToLive(300000, TimeUnit.MILLISECONDS)
+                    .build();
+
+//            PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager();
+//// Increase max total connection to 200
+//cm.setMaxTotal(200);
+//// Increase default max connection per route to 20
+//cm.setDefaultMaxPerRoute(20);
+//
+//// Increase max connections for localhost:80 to 50
+//HttpHost localhost = new HttpHost("locahost", 80);
+//cm.setMaxPerRoute(new HttpRoute(localhost), 50);
+//
+//CloseableHttpClient httpClient = HttpClients.custom()
+//        .setConnectionManager(cm)
+//        .build();
         }
 
         public Map<String, Object> post(String url, Object inputObject, Map<String, Object> httpClientOptions) throws JsonProcessingException, UnsupportedEncodingException, IOException {
@@ -249,101 +272,62 @@ public class HttpPostClient {
             return httpClientResultMap;
 
         }
-    }
 
+        public Map<String, Object> postTimeout(String url, Object inputObject, Map<String, Object> httpClientOptions) throws JsonProcessingException, UnsupportedEncodingException, IOException {
+            int timeoutSec = 5;
+            if (httpClientOptions.get("timeoutSec") != null) {
+                long timeoutSecLong = (long) httpClientOptions.get("timeoutSec");
+                timeoutSec = (int) (long) timeoutSecLong;
+            }
+            //System.out.print("timeoutSec" +timeoutSec);
+            RequestConfig requestConfig = RequestConfig.custom()
+                    // Determines the timeout in milliseconds until a connection is established.
+                    .setConnectTimeout(timeoutSec * 1000)
+                    // Defines the socket timeout in milliseconds,
+                    // which is the timeout for waiting for data or, put differently,
+                    // a maximum period inactivity between two consecutive data packets).
+                    .setSocketTimeout(timeoutSec * 1000)
+                    // Returns the timeout in milliseconds used when requesting a connection
+                    // from the connection manager.
+                    .setConnectionRequestTimeout(timeoutSec * 1000)
+                    
+                    .build();
+
+            CloseableHttpClient httpClient;
+
+            // -- check for client type
+            if (httpClientOptions.get("enableInsecureHttps").equals(false)) {
+                httpClient = httpClientSecure;
+            } else {
+                httpClient = httpClientInsecure;
+            }
+
+            // --- result variables
+            Map<String, Object> httpClientResultMap = new HashMap<String, Object>();
+
+            // --- http post
+            // --- Object to JSON
+            ObjectMapper mapper = new ObjectMapper();
+            String jsonInString = mapper.writeValueAsString(inputObject);
+
+            // --- post
+            HttpPost postRequest = new HttpPost(url);
+            postRequest.setEntity(new StringEntity(jsonInString));
+            postRequest.setConfig(requestConfig);
+            postRequest.setHeader(HttpHeaders.CONNECTION, "close");
+            postRequest.setHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+            CloseableHttpResponse httpResponse = httpClient.execute(postRequest);
+
+            // --- response
+            String content = EntityUtils.toString(httpResponse.getEntity());
+            int statusCode = httpResponse.getStatusLine().getStatusCode();
+
+            httpClientResultMap = new Gson().fromJson(content.toString(), Map.class);
+
+            // --- return result
+            return httpClientResultMap;
+
+        }
+
+    }
 }
-
-/*
-    @UserFunction
-    @Description(
-            "// - return json post response "
-            + "RETURN sc.rest.httpPostJson(\"https://127.0.0.1:8443/restTest\", {jsonObject:123},{enableInsecureHttps: false, enableErrorMessage:false}) AS postResponse "
-    )
-    public Map<String, Object> httpPostJson(
-            @Name("url") String url,
-            @Name("node") Object inputObject,
-            @Name(value = "httpClientOptions", defaultValue = httpClientProperties) Map<String, Object> httpClientOptions
-    ) {
-
-        Map<String, Object> response;
-        try {
-            response = http.post(url, inputObject, httpClientOptions);
-            log.debug("sc.rest.httpPostRelationship - input: " + url.toString() + " " + inputObject.toString() + " " + httpClientOptions.toString());
-        } catch (Exception ex) {
-            if (httpClientOptions.get("enableErrorMessage").equals(true)) {
-                response = new HashMap();
-                response.put("error", "http post error: " + ex.toString());
-            } else {
-                response = null;
-            }
-            log.error("sc.rest.httpPostRelationship - input: " + url.toString() + " " + inputObject.toString() + " " + httpClientOptions.toString());
-        }
-        return response;
-    }
-
-    @UserFunction
-    @Description(
-            "// - return node post response "
-            + "MATCH (n:scTestNode) WHERE ID(n)=434 "
-            + "RETURN sc.rest.httpPostNode( "
-            + "\"http://127.0.0.1/restTest\",  "
-            + "n, "
-            + "{enableInsecureHttps: false, enableErrorMessage:false} "
-            + ")  n"
-            + "AS postResponseNode"
-    )
-    public Map<String, Object> httpPostNode(
-            @Name("url") String url,
-            @Name("node") Node node,
-            @Name(value = "httpClientOptions", defaultValue = httpClientProperties) Map<String, Object> httpClientOptions
-    ) {
-
-        Map<String, Object> response;
-        try {
-            response = http.post(url, node.getAllProperties(), httpClientOptions);
-            log.debug("sc.rest.httpPostRelationship - input: " + url.toString() + " " + node.toString() + " " + httpClientOptions.toString());
-        } catch (Exception ex) {
-            if (httpClientOptions.get("enableErrorMessage").equals(true)) {
-                response = new HashMap();
-                response.put("error", "http post error: " + ex.toString());
-            } else {
-                response = null;
-            }
-            log.error("sc.rest.httpPostRelationship - input: " + url.toString() + " " + node.toString() + " " + httpClientOptions.toString());
-        }
-        return response;
-
-    }
-
-    @UserFunction
-    @Description(
-            "// - return node post response "
-            + "MATCH MATCH ()-[l]->()HERE ID(l)=434 "
-            + "RETURN sc.rest.httpClientOptions( "
-            + "\"http://127.0.0.1/restTest\",  "
-            + "l "
-            + "{enableInsecureHttps: false, enableErrorMessage:false} "
-            + ")  n"
-            + "AS postResponseNode")
-    public Map<String, Object> httpPostRelationship(
-            @Name("url") String url,
-            @Name("relationship") Relationship relationship,
-            @Name(value = "httpClientOptions", defaultValue = httpClientProperties) Map<String, Object> httpClientOptions
-    ) {
-        Map<String, Object> response;
-        try {
-            response = http.post(url, relationship.getAllProperties(), httpClientOptions);
-            log.debug("sc.rest.httpPostRelationship - input: " + url.toString() + " " + relationship.toString() + " " + httpClientOptions.toString());
-        } catch (Exception ex) {
-
-            if (httpClientOptions.get("enableErrorMessage").equals(true)) {
-                response = new HashMap();
-                response.put("error", "http post error: " + ex.toString());
-            } else {
-                response = null;
-            }
-            log.error("sc.rest.httpPostRelationship - input: " + url.toString() + " " + relationship.toString() + " " + httpClientOptions.toString());
-        }
-        return response;
-    }
- */

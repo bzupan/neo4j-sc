@@ -69,7 +69,7 @@ public class Neo4jLog {
         }
 
         log.info("sc.log: " + logString.toString() + " " + logObjectString);
-        return null;
+        return logObject;
     }
 
 }
