@@ -53,23 +53,79 @@ public class Neo4jLog {
         String logObjectString = "";
         if (logObject instanceof Map) {
             ObjectMapper mapper = new ObjectMapper();
-            logObjectString = "map " + mapper.writeValueAsString(logObject) ; //(String) logObject.toString();
+            logObjectString = mapper.writeValueAsString(logObject); //(String) logObject.toString();
         } else if (logObject instanceof Node) {
             ObjectMapper mapper = new ObjectMapper();
             Node neo4jNode = (Node) logObject;
             String neo4jNodeAsJson = "{_id:" + neo4jNode.getId() + ",_labels:" + neo4jNode.getLabels().toString() + ",_properties:" + mapper.writeValueAsString(neo4jNode.getAllProperties()) + "}";
-            logObjectString = "node " + neo4jNodeAsJson;
+            logObjectString = "node: " + neo4jNodeAsJson;
         } else if (logObject instanceof Relationship) {
             ObjectMapper mapper = new ObjectMapper();
             Relationship neo4jRelationship = (Relationship) logObject;
             String neo4jRelationshipAsJson = "{_id:" + neo4jRelationship.getId() + ",_from:" + neo4jRelationship.getStartNodeId() + ",_to:" + neo4jRelationship.getEndNodeId() + ",_type:" + neo4jRelationship.getType().toString() + ",_properties:" + mapper.writeValueAsString(neo4jRelationship.getAllProperties()) + "}";
-            logObjectString = "relationship " + neo4jRelationshipAsJson;
+            logObjectString = "relationship: " + neo4jRelationshipAsJson;
         } else {
-            logObjectString = " " + logObject.toString();
+            logObjectString = logObject.toString();
         }
 
         log.info("sc.log: " + logString.toString() + " " + logObjectString);
         return logObject;
+    }
+
+    @UserFunction
+    @Description("RETURN sc.log.info('log info ')  // ")
+    public Map<String, Object> infoObject(
+            @Name("logString") Object logString,
+            @Name(value = "logObject", defaultValue = "{}") Map<String, Object> logObject
+    ) throws JsonProcessingException {
+        String logObjectString = "";
+        if (logObject instanceof Map) {
+            ObjectMapper mapper = new ObjectMapper();
+            logObjectString = mapper.writeValueAsString(logObject); //(String) logObject.toString();
+        } else if (logObject instanceof Node) {
+            ObjectMapper mapper = new ObjectMapper();
+            Node neo4jNode = (Node) logObject;
+            String neo4jNodeAsJson = "{_id:" + neo4jNode.getId() + ",_labels:" + neo4jNode.getLabels().toString() + ",_properties:" + mapper.writeValueAsString(neo4jNode.getAllProperties()) + "}";
+            logObjectString = "node: " + neo4jNodeAsJson;
+        } else if (logObject instanceof Relationship) {
+            ObjectMapper mapper = new ObjectMapper();
+            Relationship neo4jRelationship = (Relationship) logObject;
+            String neo4jRelationshipAsJson = "{_id:" + neo4jRelationship.getId() + ",_from:" + neo4jRelationship.getStartNodeId() + ",_to:" + neo4jRelationship.getEndNodeId() + ",_type:" + neo4jRelationship.getType().toString() + ",_properties:" + mapper.writeValueAsString(neo4jRelationship.getAllProperties()) + "}";
+            logObjectString = "relationship: " + neo4jRelationshipAsJson;
+        } else {
+            logObjectString = logObject.toString();
+        }
+
+        log.info("sc.log: " + logString.toString() + " " + logObjectString);
+        return logObject;
+    }
+
+    @UserFunction
+    @Description("RETURN sc.log.info('log info ')  // ")
+    public Map<String, Object> infoNull(
+            @Name("logString") Object logString,
+            @Name(value = "logObject", defaultValue = "{}") Map<String, Object> logObject
+    ) throws JsonProcessingException {
+        String logObjectString = "";
+        if (logObject instanceof Map) {
+            ObjectMapper mapper = new ObjectMapper();
+            logObjectString = mapper.writeValueAsString(logObject); //(String) logObject.toString();
+        } else if (logObject instanceof Node) {
+            ObjectMapper mapper = new ObjectMapper();
+            Node neo4jNode = (Node) logObject;
+            String neo4jNodeAsJson = "{_id:" + neo4jNode.getId() + ",_labels:" + neo4jNode.getLabels().toString() + ",_properties:" + mapper.writeValueAsString(neo4jNode.getAllProperties()) + "}";
+            logObjectString = "node: " + neo4jNodeAsJson;
+        } else if (logObject instanceof Relationship) {
+            ObjectMapper mapper = new ObjectMapper();
+            Relationship neo4jRelationship = (Relationship) logObject;
+            String neo4jRelationshipAsJson = "{_id:" + neo4jRelationship.getId() + ",_from:" + neo4jRelationship.getStartNodeId() + ",_to:" + neo4jRelationship.getEndNodeId() + ",_type:" + neo4jRelationship.getType().toString() + ",_properties:" + mapper.writeValueAsString(neo4jRelationship.getAllProperties()) + "}";
+            logObjectString = "relationship: " + neo4jRelationshipAsJson;
+        } else {
+            logObjectString = logObject.toString();
+        }
+
+        log.info("sc.log: " + logString.toString() + " " + logObjectString);
+        return null;
     }
 
 }

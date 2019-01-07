@@ -12,6 +12,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Random;
 import java.util.stream.Stream;
 
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
@@ -26,6 +27,7 @@ import org.neo4j.logging.Log;
 import org.neo4j.procedure.Context;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Result;
 import org.neo4j.graphdb.Transaction;
@@ -37,7 +39,6 @@ import org.neo4j.procedure.UserFunction;
 
 import sc.MapResult;
 import sc.MapProcess;
-
 
 public class Neo4jMqtt {
 
@@ -55,38 +56,40 @@ public class Neo4jMqtt {
     // list
     // ----------------------------------------------------------------------------------
     @UserFunction
-    @Description("RETURN sc.mqtt.list() // list MqTT brokers")
-    public List< Map<String, Object>> list() {
-        log.debug("sc.mqtt.list: " + mqttBrokersMap.getListFromMapAllClean().toString());
+    @Description("RETURN sc.mqtt.listBrokers() ")
+    public List< Map<String, Object>> listBrokers() {
+        log.debug("sc.mqtt.listBrokers: " + mqttBrokersMap.getListFromMapAllClean().toString());
         return mqttBrokersMap.getListFromMapAllClean();
     }
 
     // ----------------------------------------------------------------------------------
     // add
     // ----------------------------------------------------------------------------------
+    // RETURN sc.mqtt.addBroker('graphTravelerMaster', {brokerUrl:'tcp://10.20.20.13:1883' ,clientId:'neo4jDb'  })
     @UserFunction
-    @Description("RETURN sc.mqtt.add('mqttBrokerName', {brokerUrl:'tcp://iot.eclipse.org:1883' ,clientId:'123'  })   // add MqTT broker client")
-    public Map<String, Object> add(
+    @Description("RETURN sc.mqtt.addBroker('mqttBrokerName', {brokerUrl:'tcp://iot.eclipse.org:1883' ,clientId:'123'  })   // add MqTT broker client")
+    public Map<String, Object> addBroker(
             @Name("name") String name,
             @Name("mqtt") Map<String, Object> mqtt
     ) {
+        log.debug("sc.mqtt.addBroker: " + name + " " + mqtt.toString());
         String brokerUrl = mqtt.get("brokerUrl").toString();
         String clientId = name; //mqtt.get("clientId").toString();
 
         if (mqtt.get("clientId").equals(null)) {
-            clientId = name;
+            clientId = name + "Client" + new Random().nextInt();
         } else {
             clientId = mqtt.get("clientId").toString();
         }
 
         MemoryPersistence persistence = new MemoryPersistence();
-
         Map<String, Object> mqttBrokerTmp = new HashMap<String, Object>();
 
         try {
             MqttClientNeo mqttBrokerNeo4jClient = new MqttClientNeo(brokerUrl, clientId, persistence);
             log.debug("sc.mqtt -  connect ok: " + name + " " + brokerUrl + " " + clientId);
             mqttBrokerTmp.put("name", name);
+            mqttBrokerTmp.put("clientId", clientId);
             mqttBrokerTmp.put("mqtt", mqtt);
             mqttBrokerTmp.put("messageSendOk", 0);
             mqttBrokerTmp.put("messageSendError", 0);
@@ -97,31 +100,32 @@ public class Neo4jMqtt {
             Map<String, Object> subscribeList = new HashMap<String, Object>();
             mqttBrokerTmp.put("subscribeList", subscribeList);
             mqttBrokersMap.addToMap(name, mqttBrokerTmp);
+            log.info("sc.mqtt - addBroker ok: " + name + " " + brokerUrl + " " + clientId);
             return mqttBrokersMap.getMapElementByNameClean(name);
         } catch (Exception ex) {
-            log.error("sc.mqtt -  connect error: " + name + " " + brokerUrl + " " + clientId + " " + ex.toString());
+            log.error("sc.mqtt - addBroker error: " + name + " " + brokerUrl + " " + clientId + " " + ex.toString());
             return null;
         }
-
     }
 
     // ----------------------------------------------------------------------------------
     // delete
     // ----------------------------------------------------------------------------------
     @UserFunction
-    @Description("RETURN sc.mqtt.delete('mqttBrokerName') // delete MqTT broker client")
-    public Map<String, Object> delete(
+    @Description("RETURN sc.mqtt.deleteBroker('mqttBrokerName') // delete MqTT broker client")
+    public Map<String, Object> deleteBroker(
             @Name("name") String name
     ) {
+        // --- delete broker
         Map<String, Object> mqttBroker = mqttBrokersMap.getMapElementByName(name);
         MqttClientNeo mqttBrokerNeo4jClient = (MqttClientNeo) mqttBroker.get("mqttBrokerNeo4jClient");
 
         if (!mqttBrokerNeo4jClient.equals(null)) {
-            mqttBrokerNeo4jClient.unsubscribe();
+            mqttBrokerNeo4jClient.unsubscribeAll();
             mqttBrokerNeo4jClient.disconnect();
             mqttBrokersMap.removeFromMap(name);
         }
-        log.debug("sc.mqtt -  unsubscribe + delete: " + name + " " + name);
+        log.debug("sc.mqtt -  deleteBroker: " + name + " " + name);
         return null;
     }
 
@@ -129,34 +133,112 @@ public class Neo4jMqtt {
     // publish
     // ----------------------------------------------------------------------------------
     @Procedure(mode = Mode.WRITE)
-    @Description("CALL sc.mqtt.publish('mqttBrokerName', '/mqtt/topic/path', 'message') // publish message")
-    public Stream<MapResult> publish(
+    @Description("CALL sc.mqtt.publishValue('mqttBrokerName', '/mqtt/topic/path', 'value'}))")
+    public Stream<MapResult> publishValue(
             @Name("name") String name,
-            @Name("topic") String toppic,
+            @Name("topic") String topic,
+            @Name("value") Object value,
+            @Name(value = "messagePublishOptions", defaultValue = messagePublishDefaults) Map<String, Object> messagePublishOptions
+    ) {
+        // --- get broker
+        Map<String, Object> mqttBroker = mqttBrokersMap.getMapElementByName(name);
+        MqttClientNeo mqttBrokerNeo4jClient = (MqttClientNeo) mqttBroker.get("mqttBrokerNeo4jClient");
+        // --- send message
+        String mqttMesageString = (String) value;
+        try {
+            mqttBrokerNeo4jClient.publish(topic, mqttMesageString);
+            log.debug("sc.mqtt - publishValue ok:\n" + name + "\n" + topic + "\n" + mqttMesageString);
+            mqttBroker.put("messageSendOk", 1 + (int) mqttBroker.get("messageSendOk"));
+        } catch (Exception ex) {
+            mqttBroker.put("messageSendError", 1 + (int) mqttBroker.get("messageSendError"));
+            mqttBroker.put("messageSendErrorMessage", "sc.mqtt - publish error: " + name + " " + topic + " " + mqttMesageString + " " + ex.toString());
+            log.error("sc.mqtt - publishValue error:\n" + name + "\n" + topic + "\n" + mqttMesageString + "\n" + ex.toString());
+        }
+        return Stream.of(mqttBrokersMap.getMapElementByNameClean(name)).map(MapResult::new);
+    }
+
+    // ----------------------------------------------------------------------------------
+    @Procedure(mode = Mode.WRITE)
+    @Description("CALL sc.mqtt.publishJson('mqttBrokerName', '/mqtt/topic/path', {message:123})")
+    public Stream<MapResult> publishJson(
+            @Name("name") String name,
+            @Name("topic") String topic,
             @Name("message") Object message,
             @Name(value = "messagePublishOptions", defaultValue = messagePublishDefaults) Map<String, Object> messagePublishOptions
     ) {
+        // --- get broker
         Map<String, Object> mqttBroker = mqttBrokersMap.getMapElementByName(name);
-
         MqttClientNeo mqttBrokerNeo4jClient = (MqttClientNeo) mqttBroker.get("mqttBrokerNeo4jClient");
+        // --- send message
         String mqttMesageString = "";
         try {
-
             if (message instanceof String) {
                 mqttMesageString = (String) message;
             } else {
                 ObjectMapper mapper = new ObjectMapper();
                 mqttMesageString = mapper.writeValueAsString(message).toString();
             }
-            mqttBrokerNeo4jClient.publish(toppic, mqttMesageString);
-            log.debug("sc.mqtt -  publish ok: " + name + " " + toppic + " " + message);
+            mqttBrokerNeo4jClient.publish(topic, mqttMesageString);
+            log.debug("sc.mqtt - publishJson ok:\n" + name + "\n" + topic + "\n" + mqttMesageString);
             mqttBroker.put("messageSendOk", 1 + (int) mqttBroker.get("messageSendOk"));
-
-            //return "publish ok";
         } catch (Exception ex) {
             mqttBroker.put("messageSendError", 1 + (int) mqttBroker.get("messageSendError"));
-            mqttBroker.put("messageSendErrorMessage", "sc.mqtt -  publish error: " + name + " " + toppic + " " + mqttMesageString + " " + ex.toString());
-            log.error("sc.mqtt -  publish error: " + name + " " + toppic + " " + mqttMesageString + " " + ex.toString());
+            mqttBroker.put("messageSendErrorMessage", "sc.mqtt - publishJson error: " + name + " " + topic + " " + mqttMesageString + " " + ex.toString());
+            log.error("sc.mqtt - publishJson error:\n" + name + "\n" + topic + "\n" + mqttMesageString + "\n" + ex.toString());
+        }
+        return Stream.of(mqttBrokersMap.getMapElementByNameClean(name)).map(MapResult::new);
+    }
+
+    // ----------------------------------------------------------------------------------
+    @Procedure(mode = Mode.WRITE)
+    @Description("CALL sc.mqtt.publishJsonRpc2('graphTravelerMaster', 'pingIpAddress', {ipAddress:'10.20.20.13'}) ")
+    public Stream<MapResult> publishJsonRpc2(
+            @Name("name") String name,
+            @Name("method") String method,
+            @Name("message") Object message,
+            @Name(value = "messagePublishOptions", defaultValue = messagePublishDefaults) Map<String, Object> messagePublishOptions
+    ) {
+        // --- get broker
+        Map<String, Object> mqttBroker = mqttBrokersMap.getMapElementByName(name);
+        MqttClientNeo mqttBrokerNeo4jClient = (MqttClientNeo) mqttBroker.get("mqttBrokerNeo4jClient");
+        // --- set message
+        String mqttMesageString = "";
+        Map<String, Object> jsonRpc2Request = new HashMap();
+        Map<String, Object> jsonRpc2Params = new HashMap();
+        jsonRpc2Request.put("jsonrpc", "2.0");
+        jsonRpc2Request.put("method", method);
+        jsonRpc2Request.put("id", new Random().nextInt());
+        if (message instanceof Map) {
+            jsonRpc2Params = (Map<String, Object>) message;
+            jsonRpc2Request.put("params", jsonRpc2Params);
+        } else if (message instanceof Node) {
+            jsonRpc2Params = (Map<String, Object>) ((Node) message).getAllProperties();
+            jsonRpc2Request.put("id", ((Node) message).getId());
+            jsonRpc2Request.put("params", jsonRpc2Params);
+        } else if (message instanceof Relationship) {
+            jsonRpc2Params = (Map<String, Object>) ((Relationship) message).getAllProperties();
+            jsonRpc2Request.put("id", ((Relationship) message).getId());
+            jsonRpc2Request.put("params", jsonRpc2Params);
+        } else {
+            log.error("sc.mqtt - publishJsonRpc2 error - wrong message:\n" + method + "\n" + message);
+            return null;
+        }
+        // --- set topic
+        String mqttServerId = (String) mqttBroker.get("name");
+        String mqttClientId = (String) mqttBroker.get("clientId");
+        String mqttTopic = "/mqttRpc/request/" + mqttServerId + "/" + method + "/" + mqttClientId;
+        // --- send message
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            log.info("sc.mqtt -  publishJsonRpc2: " + jsonRpc2Request);
+            mqttMesageString = mapper.writeValueAsString(jsonRpc2Request).toString();
+            mqttBrokerNeo4jClient.publish(mqttTopic, mqttMesageString);
+            log.info("sc.mqtt - publishJsonRpc2 ok: " + name + "\n" + mqttTopic + "\n" + mqttMesageString);
+            mqttBroker.put("messageSendOk", 1 + (int) mqttBroker.get("messageSendOk"));
+        } catch (Exception ex) {
+            mqttBroker.put("messageSendError", 1 + (int) mqttBroker.get("messageSendError"));
+            mqttBroker.put("messageSendErrorMessage", "sc.mqtt - publishJsonRpc2 error: " + name + " " + mqttTopic + " " + mqttMesageString + " " + ex.toString());
+            log.error("sc.mqtt - publishJsonRpc2 error: " + name + "\n" + mqttTopic + "\n" + mqttMesageString + "\n" + ex.toString());
         }
         return Stream.of(mqttBrokersMap.getMapElementByNameClean(name)).map(MapResult::new);
     }
@@ -165,50 +247,150 @@ public class Neo4jMqtt {
     // subscribe
     // ----------------------------------------------------------------------------------
     @Procedure(mode = Mode.WRITE)
-    @Description("CALL sc.mqtt.subscribe('mqttBrokerName', '/mqtt/topic/path','cypherQuery', ) // subscribe cypher query to mqtt messages")
-    public Stream<MapResult> subscribe(
+    @Description("CALL sc.mqtt.subscribeValue('mqttBrokerName', '/mqtt/topic/path','MERGE (n:mqttTest) ON CREATE SET n.count=1, n.message=$message ON MATCH SET n.count = n.count +1, n.message=$message ') ")
+    public Stream<MapResult> subscribeValue(
             @Name("name") String name,
-            @Name("topic") String toppic,
+            @Name("topic") String topic,
             @Name("query") String query,
             @Name(value = "subscribeOptions", defaultValue = messageSubscribeDefaults) Map<String, Object> subscribeOptions
     ) {
+        // --- get broker
         Map<String, Object> mqttBroker = mqttBrokersMap.getMapElementByName(name);
-
         MqttClientNeo mqttBrokerNeo4jClient = (MqttClientNeo) mqttBroker.get("mqttBrokerNeo4jClient");
-        ProcessMqttMessage task = new ProcessMqttMessage();
-        
-        Map<String, Object> subscribeList = null;
+        // --- set processor
+        String messageType = (String) subscribeOptions.get("messageType");
+        ProcessMqttMessage task = new ProcessMqttMessage("value", query);
+        // --- subscribe
         try {
             // --- add to subscription list
-            subscribeList = (Map<String, Object>) mqttBroker.get("subscribeList");
-            subscribeList.put(toppic, query);
+            Map<String, Object> subscribeList = (Map<String, Object>) mqttBroker.get("subscribeList");
+            subscribeList.put(topic, query);
             mqttBroker.put("messageSubscribeOk", 1 + (int) mqttBroker.get("messageSubscribeOk"));
-
-            mqttBrokerNeo4jClient.listen(toppic, query, task);
-            log.debug("sc.mqtt -  subscribe ok: " + name + " " + toppic);
+            mqttBrokerNeo4jClient.subscribe(topic, query, task);
+            log.debug("sc.mqtt - subscribeValue ok: \n" + name + "\n" + topic);
         } catch (Exception ex) {
             mqttBroker.put("messageSubscribeError", 1 + (int) mqttBroker.get("messageSubscribeError"));
-            //mqttBroker.put("messageSubscribeErrorMessage", "sc.mqtt -  subscribe error: " + name + " " + toppic + " " + query + " " + ex.toString());
-            log.error("sc.mqtt -  subscribe error: " + name + " " + toppic + " " + " " + ex.toString());
+            //mqttBroker.put("messageSubscribeErrorMessage", "sc.mqtt -  subscribe error: " + name + " " + topic + " " + query + " " + ex.toString());
+            log.error("sc.mqtt -  subscribeValue error: \n" + name + "\n" + topic + "\n" + "\n" + ex.toString());
 
         }
         return Stream.of(mqttBrokersMap.getMapElementByNameClean(name)).map(MapResult::new);
     }
 
-    @UserFunction
-    @Description("CALL sc.mqtt.unSubscribe('mqttBrokerName', '/mqtt/topic/path' ) // subscribe cypher query to mqtt messages")
-    public Object unSubscribe(
+    // ----------------------------------------------------------------------------------
+    @Procedure(mode = Mode.WRITE)
+    @Description("CALL sc.mqtt.subscribeJson('mqttBrokerName', '/mqtt/topic/path','MERGE (n:mqttTest) ON CREATE SET n.count=1, n.message=$message ON MATCH SET n.count = n.count +1, n.message=$message ') ")
+    public Stream<MapResult> subscribeJson(
             @Name("name") String name,
-            @Name("topic") String toppic
+            @Name("topic") String topic,
+            @Name("query") String query,
+            @Name(value = "subscribeOptions", defaultValue = messageSubscribeDefaults) Map<String, Object> subscribeOptions
     ) {
+        // --- get broker
+        Map<String, Object> mqttBroker = mqttBrokersMap.getMapElementByName(name);
+        MqttClientNeo mqttBrokerNeo4jClient = (MqttClientNeo) mqttBroker.get("mqttBrokerNeo4jClient");
+        // --- set processor
+        String messageType = (String) subscribeOptions.get("messageType");
+        ProcessMqttMessage task = new ProcessMqttMessage("json", query);
+        // --- subscribe
+        try {
+            // --- add to subscription list
+            Map<String, Object> subscribeList = (Map<String, Object>) mqttBroker.get("subscribeList");
+            subscribeList.put(topic, query);
+            mqttBroker.put("messageSubscribeOk", 1 + (int) mqttBroker.get("messageSubscribeOk"));
+
+            mqttBrokerNeo4jClient.subscribe(topic, query, task);
+            log.debug("sc.mqtt -  subscribeJson ok: \n" + name + "\n" + topic);
+        } catch (Exception ex) {
+            mqttBroker.put("messageSubscribeError", 1 + (int) mqttBroker.get("messageSubscribeError"));
+            //mqttBroker.put("messageSubscribeErrorMessage", "sc.mqtt -  subscribe error: " + name + " " + topic + " " + query + " " + ex.toString());
+            log.error("sc.mqtt -  subscribeJson error: \n" + name + "\n" + topic + "\n" + "\n" + ex.toString());
+
+        }
+        return Stream.of(mqttBrokersMap.getMapElementByNameClean(name)).map(MapResult::new);
+    }
+
+    // ----------------------------------------------------------------------------------
+    @Procedure(mode = Mode.WRITE)
+    @Description("CALL sc.mqtt.subscribeJsonRpc2('graphTravelerMaster', 'pingIpAddress','MERGE (n:mqttTest) ON CREATE SET n.count=1, n.message=$message ON MATCH SET n.count = n.count +1, n.message=$message ')")
+    public Stream<MapResult> subscribeJsonRpc2(
+            @Name("name") String name,
+            @Name("method") String method,
+            @Name("query") String query,
+            @Name(value = "subscribeOptions", defaultValue = messageSubscribeDefaults) Map<String, Object> subscribeOptions
+    ) {
+        // --- get broker
+        Map<String, Object> mqttBroker = mqttBrokersMap.getMapElementByName(name);
+        // --- set topic
+        String mqttServerId = (String) mqttBroker.get("name");
+        String mqttClientId = (String) mqttBroker.get("clientId");
+        String mqttTopic = "/mqttRpc/response/" + mqttClientId + "/" + method + "/" + mqttServerId;
+        MqttClientNeo mqttBrokerNeo4jClient = (MqttClientNeo) mqttBroker.get("mqttBrokerNeo4jClient");
+        // --- set processor
+        ProcessMqttMessage taskJsonRpc2 = new ProcessMqttMessage("jsonRpc2", query);
+        // --- subscribe
+        try {
+            // --- add to subscription list
+            Map<String, Object> subscribeList = (Map<String, Object>) mqttBroker.get("subscribeList");
+            subscribeList.put(mqttTopic, query);
+            mqttBroker.put("messageSubscribeOk", 1 + (int) mqttBroker.get("messageSubscribeOk"));
+
+            mqttBrokerNeo4jClient.subscribe(mqttTopic, query, taskJsonRpc2);
+            log.debug("sc.mqtt -  subscribeJsonRpc2 ok:\n" + name + "\n" + mqttTopic);
+
+        } catch (Exception ex) {
+            mqttBroker.put("messageSubscribeError", 1 + (int) mqttBroker.get("messageSubscribeError"));
+            //mqttBroker.put("messageSubscribeErrorMessage", "sc.mqtt -  subscribe error: " + name + " " + topic + " " + query + " " + ex.toString());
+            log.error("sc.mqtt -  subscribeJsonRpc2 error:\n" + name + "\n" + mqttTopic + "\n" + "\n" + ex.toString());
+
+        }
+        return Stream.of(mqttBrokersMap.getMapElementByNameClean(name)).map(MapResult::new);
+    }
+
+    // ----------------------------------------------------------------------------------
+    // unsubscribe
+    // ----------------------------------------------------------------------------------
+    @UserFunction
+    @Description("CALL sc.mqtt.unSubscribeTopic('mqttBrokerName', '/mqtt/topic/path' )")
+    public Object unSubscribeTopic(
+            @Name("name") String name,
+            @Name("topic") String topic
+    ) {
+        // --- get broker
         Map<String, Object> mqttBroker = mqttBrokersMap.getMapElementByName(name);
 
         MqttClientNeo mqttBrokerNeo4jClient = (MqttClientNeo) mqttBroker.get("mqttBrokerNeo4jClient");
-        mqttBrokerNeo4jClient.unsubscribe(toppic);
+        mqttBrokerNeo4jClient.unsubscribe(topic);
 
         Map<String, Object> subscribeList = (Map<String, Object>) mqttBroker.get("subscribeList");
-        subscribeList.remove(toppic);
-        log.debug("sc.mqtt - unSubscribe: " + name + " " + toppic);
+        subscribeList.remove(topic);
+        log.debug("sc.mqtt - unSubscribeTopic: " + name + " " + topic);
+
+        return null;
+    }
+
+    // ----------------------------------------------------------------------------------
+    @UserFunction
+    @Description("CALL sc.mqtt.unSubscribeJsonRpc2('mqttBrokerName', 'pingIpAddress' )")
+    public Object unSubscribeJsonRpc2(
+            @Name("name") String name,
+            @Name("method") String method
+    ) {
+        // --- get broker
+        Map<String, Object> mqttBroker = mqttBrokersMap.getMapElementByName(name);
+
+        MqttClientNeo mqttBrokerNeo4jClient = (MqttClientNeo) mqttBroker.get("mqttBrokerNeo4jClient");
+
+        // --- set topic
+        String mqttServerId = (String) mqttBroker.get("name");
+        String mqttClientId = (String) mqttBroker.get("clientId");
+        String mqttTopic = "/mqttRpc/response/" + mqttClientId + "/" + method + "/" + mqttServerId;
+
+        mqttBrokerNeo4jClient.unsubscribe(mqttTopic);
+
+        Map<String, Object> subscribeList = (Map<String, Object>) mqttBroker.get("subscribeList");
+        subscribeList.remove(mqttTopic);
+        log.debug("sc.mqtt - unSubscribeJsonRpc2: " + name + " " + mqttTopic);
 
         return null;
     }
@@ -245,27 +427,50 @@ public class Neo4jMqtt {
     // ----------------------------------------------------------------------------------
     public class ProcessMqttMessage {
 
-        public ProcessMqttMessage() {
+        String processType = "";
+        String cypherQuery = "";
+
+        public ProcessMqttMessage(String messageType, String cypherQueryInput) {
+
+            this.processType = messageType;
+            this.cypherQuery = cypherQueryInput;
+            log.info("sc.mqtt - ProcessMqttMessage registration: " + this.processType + this.cypherQuery);
         }
 
-        public void run(Object message) {
-            JSONUtils checkJson = new JSONUtils();
-            log.info("sc.mqtt - message received: " + message.toString());
-        }
+        public void run(String message) {
+            log.info("sc.mqtt - ProcessMqttMessage run: " + this.cypherQuery + " " + message + " " + this.processType);
 
-        public void run(String cypherQuery, String message) {
+            Map<String, Object> cypherParams = new HashMap();
+            if (this.processType == "json") {
+                JSONUtils checkJson = new JSONUtils();
+                cypherParams = (Map<String, Object>) checkJson.jsonStringToMap(message);
+            } else if (this.processType == "jsonRpc2") {
+                JSONUtils checkJson = new JSONUtils();
+                Map<String, Object> jsonRpc2responseResult = (Map<String, Object>) checkJson.jsonStringToMap(message);
 
-            JSONUtils checkJson = new JSONUtils();
-            log.info("sc.mqtt - message received: " + cypherQuery + " " + message + (Map<String, Object>) checkJson.jsonStringToMap(message));
+                if (!(jsonRpc2responseResult.get("result") == null)) {
+                    cypherParams = (Map<String, Object>) jsonRpc2responseResult.get("result");
+                    cypherParams.put("id", cypherParams.get("id"));
+                } else {
+                    log.error("sc.mqtt - message received error:\n" + cypherParams.toString());
+                }
 
+            } else if (this.processType == "value") {
+                cypherParams.put("value", message);
+            } else {
+                cypherParams = new HashMap();
+            }
+
+            log.info("sc.mqtt - message received: \n" + this.cypherQuery + "\n" + message + "\n" + this.processType + "\n" + cypherParams.toString());
             try (Transaction tx = db.beginTx()) {
-                Result dbResult = db.execute(cypherQuery, (Map<String, Object>) checkJson.jsonStringToMap(message));
-                log.debug("sc.mqtt - cypherQuery results: " + " " + dbResult.resultAsString());
+                Result dbResult = db.execute(this.cypherQuery, cypherParams);
+                log.debug("sc.mqtt - cypherQuery results:\n" + "\n" + dbResult.resultAsString());
                 tx.success();
             } catch (Exception ex) {
-                log.error("sc.mqtt - cypherQuery error: " + " " + ex.toString());
+                log.error("sc.mqtt - cypherQuery error:\n" + ex.toString());
             }
         }
+
     }
 
     // ----------------------------------------------------------------------------------
@@ -275,60 +480,83 @@ public class Neo4jMqtt {
 
         int qos = 2;
         public MqttClient sampleClient;
+        Map<String, Object> mapMqttTopicTask = new HashMap<>();
 
         // four constructors
         public MqttClientNeo(String broker, String clientId, MemoryPersistence persistence) throws MqttException {
-            this.sampleClient = new MqttClient(broker, clientId, persistence);
+            sampleClient = new MqttClient(broker, clientId, persistence);
+
             MqttConnectOptions connOpts = new MqttConnectOptions();
-            connOpts.setCleanSession(true);
-            this.sampleClient.connect(connOpts);
+            connOpts.setAutomaticReconnect(true);
+            connOpts.setCleanSession(false);
+
+            sampleClient.connect(connOpts);
+
+            sampleClient.setCallback(new MqttCallback() {
+                @Override
+                public void connectionLost(Throwable cause) {
+                    log.debug("connectionLost");
+                }
+
+                @Override
+                public void messageArrived(String topic, MqttMessage message) {
+                    log.debug("messageArrived " + topic + " " + message.toString());
+                    ProcessMqttMessage task = (ProcessMqttMessage) mapMqttTopicTask.get(topic);
+                    log.debug("aaa" + task.toString() + task.cypherQuery + task.processType);
+                    task.run(message.toString());
+                }
+
+                @Override
+                public void deliveryComplete(IMqttDeliveryToken token) {
+                    log.debug("deliveryComplete");
+                }
+            });
 
             // --- send connect message
             String messageTmp = clientId + " connected to " + broker;
-            MqttMessage message = new MqttMessage(messageTmp.getBytes());
-            message.setQos(qos);
-            this.sampleClient.publish("/neo4j/client/system", message);
-
             log.info("sc.mqtt -  connect ok: " + clientId + " " + broker);
         }
 
-        private String publish(String topic, String content) throws MqttException {
+        private void publish(String topic, String content) throws MqttException {
             MqttMessage message = new MqttMessage(content.getBytes());
             message.setQos(qos);
             String clientId = this.sampleClient.getClientId();
             String broker = this.sampleClient.getServerURI();
 
             this.sampleClient.publish(topic, message);
-            //log.info("sc.mqtt -  publish ok: " + clientId + " " + broker + " " + content);
-            return "publish ok";
+
+            log.debug("publish" + mapMqttTopicTask.toString());
 
         }
 
-        private void unsubscribe() {
+        private void unsubscribeAll() {
             String clientId = this.sampleClient.getClientId();
             String broker = this.sampleClient.getServerURI();
+            mapMqttTopicTask = null;
             try {
                 this.sampleClient.unsubscribe("#");
-                log.info("sc.mqtt -  unsubscribe ok: " + clientId + " " + broker);
+                log.info("sc.mqtt -  unsubscribeAll ok: " + clientId + " " + broker);
             } catch (MqttException ex) {
-                log.error("sc.mqtt -  unsubscribe error: " + clientId + " " + broker + " " + ex.toString());
+                log.error("sc.mqtt -  unsubscribeAll error: " + clientId + " " + broker + " " + ex.toString());
             }
         }
 
-        private void unsubscribe(String toppic) {
+        private void unsubscribe(String topic) {
             String clientId = this.sampleClient.getClientId();
             String broker = this.sampleClient.getServerURI();
+            mapMqttTopicTask.remove(topic);
             try {
-                this.sampleClient.unsubscribe(toppic);
-                log.info("sc.mqtt -  unsubscribe ok: " + toppic + " " + clientId + " " + broker);
+                this.sampleClient.unsubscribe(topic);
+                log.info("sc.mqtt -  unsubscribe ok: " + topic + " " + clientId + " " + broker);
             } catch (MqttException ex) {
-                log.error("sc.mqtt -  unsubscribe error: " + toppic + " " + clientId + " " + broker + " " + ex.toString());
+                log.error("sc.mqtt -  unsubscribe error: " + topic + " " + clientId + " " + broker + " " + ex.toString());
             }
         }
 
         private void disconnect() {
             String clientId = this.sampleClient.getClientId();
             String broker = this.sampleClient.getServerURI();
+            mapMqttTopicTask = null;
             try {
                 this.sampleClient.disconnect();
                 log.info("sc.mqtt -  disconnect ok: " + clientId + " " + broker);
@@ -338,28 +566,13 @@ public class Neo4jMqtt {
 
         }
 
-        public void listen(String topic, String query, ProcessMqttMessage task) throws MqttException {
+        public void subscribe(String topic, String query, ProcessMqttMessage task) throws MqttException {
             String clientId = this.sampleClient.getClientId();
             String broker = this.sampleClient.getServerURI();
-            this.sampleClient.setCallback(new MqttCallback() {
-                @Override
-                public void connectionLost(Throwable cause) {
-                    log.error("sc.mqtt - connectionLost");
-                }
+            log.info("sc.mqtt - subscribe: " + topic + " " + clientId + " " + broker + " " + query);
 
-                @Override
-                public void messageArrived(String topic, MqttMessage message) {
-                    log.debug("sc.mqtt - messageArrived");
-                    task.run(query, message.toString());
-                }
-
-                @Override
-                public void deliveryComplete(IMqttDeliveryToken token) {
-                    log.debug("sc.mqtt - deliveryComplete");
-                }
-            });
+            mapMqttTopicTask.put(topic, task);
             this.sampleClient.subscribe(topic);
-
         }
     }
 }
