@@ -124,16 +124,18 @@ public class Neo4jMqtt {
     public Map<String, Object> deleteBroker(
             @Name("name") String name
     ) {
-        // --- delete broker
+        // --- delete broker if exists
+        log.debug("sc.mqtt -  deleteBroker try: " + name);
         Map<String, Object> mqttBroker = mqttBrokersMap.getMapElementByName(name);
-        MqttClientNeo mqttBrokerNeo4jClient = (MqttClientNeo) mqttBroker.get("mqttBrokerNeo4jClient");
-
-        if (!mqttBrokerNeo4jClient.equals(null)) {
-            mqttBrokerNeo4jClient.unsubscribeAll();
-            mqttBrokerNeo4jClient.disconnect();
-            mqttBrokersMap.removeFromMap(name);
+         if (!(mqttBroker == null)) {
+            if (!(mqttBroker.get("mqttBrokerNeo4jClient") == null)) {
+                MqttClientNeo mqttBrokerNeo4jClient = (MqttClientNeo) mqttBroker.get("mqttBrokerNeo4jClient");
+                mqttBrokerNeo4jClient.unsubscribeAll();
+                mqttBrokerNeo4jClient.disconnect();
+                mqttBrokersMap.removeFromMap(name);
+                log.info("sc.mqtt - deleteBroker: " + name);
+            }
         }
-        log.debug("sc.mqtt -  deleteBroker: " + name + " " + name);
         return null;
     }
 
@@ -271,7 +273,7 @@ public class Neo4jMqtt {
             @Name("query") String query,
             @Name(value = "subscribeOptions", defaultValue = messageSubscribeDefaults) Map<String, Object> subscribeOptions
     ) {
-         // --- remove subscription if exist
+        // --- remove subscription if exist
         this.unSubscribeTopic(name, topic);
         // --- get broker
         Map<String, Object> mqttBroker = mqttBrokersMap.getMapElementByName(name);
