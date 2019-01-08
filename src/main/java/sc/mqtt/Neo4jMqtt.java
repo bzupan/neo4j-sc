@@ -73,6 +73,11 @@ public class Neo4jMqtt {
             @Name("mqtt") Map<String, Object> mqtt
     ) {
         log.debug("sc.mqtt.addBroker: " + name + " " + mqtt.toString());
+
+        // --- remove broker 
+        this.deleteBroker(name);
+
+        // --- get data for connection
         String brokerUrl = mqtt.get("brokerUrl").toString();
         String clientId = name; //mqtt.get("clientId").toString();
 
@@ -86,8 +91,11 @@ public class Neo4jMqtt {
         Map<String, Object> mqttBrokerTmp = new HashMap<String, Object>();
 
         try {
+            // --- register boker
             MqttClientNeo mqttBrokerNeo4jClient = new MqttClientNeo(brokerUrl, clientId, persistence);
             log.debug("sc.mqtt -  connect ok: " + name + " " + brokerUrl + " " + clientId);
+
+            // --- store broker info 
             mqttBrokerTmp.put("name", name);
             mqttBrokerTmp.put("clientId", clientId);
             mqttBrokerTmp.put("mqtt", mqtt);
@@ -211,13 +219,22 @@ public class Neo4jMqtt {
         if (message instanceof Map) {
             jsonRpc2Params = (Map<String, Object>) message;
             jsonRpc2Request.put("params", jsonRpc2Params);
+
+            // --- use id if configured
+            if (!(jsonRpc2Params.get("id") == null)) {
+                //int idInt = ((Number) idObj).intValue();
+                jsonRpc2Request.put("id", jsonRpc2Params.get("id"));
+            } else {
+                jsonRpc2Request.put("id", new Random().nextInt());
+            }
+
         } else if (message instanceof Node) {
             jsonRpc2Params = (Map<String, Object>) ((Node) message).getAllProperties();
-            jsonRpc2Request.put("id", ((Node) message).getId());
+            jsonRpc2Request.put("id", (int) ((Node) message).getId());
             jsonRpc2Request.put("params", jsonRpc2Params);
         } else if (message instanceof Relationship) {
             jsonRpc2Params = (Map<String, Object>) ((Relationship) message).getAllProperties();
-            jsonRpc2Request.put("id", ((Relationship) message).getId());
+            jsonRpc2Request.put("id", (int) ((Relationship) message).getId());
             jsonRpc2Request.put("params", jsonRpc2Params);
         } else {
             log.error("sc.mqtt - publishJsonRpc2 error - wrong message:\n" + method + "\n" + message);
@@ -254,6 +271,8 @@ public class Neo4jMqtt {
             @Name("query") String query,
             @Name(value = "subscribeOptions", defaultValue = messageSubscribeDefaults) Map<String, Object> subscribeOptions
     ) {
+         // --- remove subscription if exist
+        this.unSubscribeTopic(name, topic);
         // --- get broker
         Map<String, Object> mqttBroker = mqttBrokersMap.getMapElementByName(name);
         MqttClientNeo mqttBrokerNeo4jClient = (MqttClientNeo) mqttBroker.get("mqttBrokerNeo4jClient");
@@ -286,6 +305,8 @@ public class Neo4jMqtt {
             @Name("query") String query,
             @Name(value = "subscribeOptions", defaultValue = messageSubscribeDefaults) Map<String, Object> subscribeOptions
     ) {
+        // --- remove subscription if exist
+        this.unSubscribeTopic(name, topic);
         // --- get broker
         Map<String, Object> mqttBroker = mqttBrokersMap.getMapElementByName(name);
         MqttClientNeo mqttBrokerNeo4jClient = (MqttClientNeo) mqttBroker.get("mqttBrokerNeo4jClient");
@@ -319,6 +340,8 @@ public class Neo4jMqtt {
             @Name("query") String query,
             @Name(value = "subscribeOptions", defaultValue = messageSubscribeDefaults) Map<String, Object> subscribeOptions
     ) {
+        // --- remove subscription if exist
+        this.unSubscribeJsonRpc2(name, method);
         // --- get broker
         Map<String, Object> mqttBroker = mqttBrokersMap.getMapElementByName(name);
         // --- set topic
@@ -438,19 +461,29 @@ public class Neo4jMqtt {
         }
 
         public void run(String message) {
-            log.info("sc.mqtt - ProcessMqttMessage run: " + this.cypherQuery + " " + message + " " + this.processType);
+            log.info("sc.mqtt - ProcessMqttMessage run:\n" + this.cypherQuery + "\n" + message + "\n" + this.processType);
 
             Map<String, Object> cypherParams = new HashMap();
             if (this.processType == "json") {
                 JSONUtils checkJson = new JSONUtils();
                 cypherParams = (Map<String, Object>) checkJson.jsonStringToMap(message);
             } else if (this.processType == "jsonRpc2") {
+                //log.info("sc.mqtt - ProcessMqttMessage jsonRpc2:\n" + this.cypherQuery + "\n" + message + "\n" + this.processType);
                 JSONUtils checkJson = new JSONUtils();
+                //log.info("sc.mqtt - ProcessMqttMessage checkJson:\n" + this.cypherQuery + "\n" + message + "\n" + this.processType);
                 Map<String, Object> jsonRpc2responseResult = (Map<String, Object>) checkJson.jsonStringToMap(message);
+                //log.info("sc.mqtt - ProcessMqttMessage jsonRpc2responseResult:\n" + this.cypherQuery + "\n" + jsonRpc2responseResult.toString() + "\n" + this.processType);
 
                 if (!(jsonRpc2responseResult.get("result") == null)) {
+                    Object idObj = jsonRpc2responseResult.get("id");
+                    int idInt = ((Number) idObj).intValue();
+                    //log.info("sc.mqtt - ProcessMqttMessage cypherParams2:\n" + idObj.toString()  +"\n");
                     cypherParams = (Map<String, Object>) jsonRpc2responseResult.get("result");
-                    cypherParams.put("id", cypherParams.get("id"));
+                    //log.info("sc.mqtt - ProcessMqttMessage cypherParams1:\n" + this.cypherQuery + "\n" + cypherParams.toString() + "\n" + this.processType);
+
+                    cypherParams.put("id", idInt);
+                    //log.info("sc.mqtt - ProcessMqttMessage cypherParams2:\n" + this.cypherQuery + "\n" + cypherParams.toString() + "\n" + this.processType);
+
                 } else {
                     log.error("sc.mqtt - message received error:\n" + cypherParams.toString());
                 }
@@ -464,7 +497,7 @@ public class Neo4jMqtt {
             log.info("sc.mqtt - message received: \n" + this.cypherQuery + "\n" + message + "\n" + this.processType + "\n" + cypherParams.toString());
             try (Transaction tx = db.beginTx()) {
                 Result dbResult = db.execute(this.cypherQuery, cypherParams);
-                log.debug("sc.mqtt - cypherQuery results:\n" + "\n" + dbResult.resultAsString());
+                log.info("sc.mqtt - cypherQuery results:\n" + "\n" + dbResult.resultAsString());
                 tx.success();
             } catch (Exception ex) {
                 log.error("sc.mqtt - cypherQuery error:\n" + ex.toString());
@@ -502,7 +535,7 @@ public class Neo4jMqtt {
                 public void messageArrived(String topic, MqttMessage message) {
                     log.debug("messageArrived " + topic + " " + message.toString());
                     ProcessMqttMessage task = (ProcessMqttMessage) mapMqttTopicTask.get(topic);
-                    log.debug("aaa" + task.toString() + task.cypherQuery + task.processType);
+                    //log.debug("aaa" + task.toString() + task.cypherQuery + task.processType);
                     task.run(message.toString());
                 }
 
