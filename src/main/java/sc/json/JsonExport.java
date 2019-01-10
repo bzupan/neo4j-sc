@@ -55,7 +55,7 @@ public class JsonExport {
             jsonString = "{_id:" + neo4jRelationship.getId() + ",_from:" + neo4jRelationship.getStartNodeId() + ",_to:" + neo4jRelationship.getEndNodeId() + ",_type:" + neo4jRelationship.getType().toString() + ",_properties:" + mapper.writeValueAsString(neo4jRelationship.getAllProperties()) + "}";
             log.debug("sc.jsonExport instanceof Relationship: " + jsonString.toString());
         } else {
-            jsonString = "{string:" +neo4jObject.toString() + "}";
+            jsonString = "{string:" + neo4jObject.toString() + "}";
             log.debug("sc.jsonExport instanceof Object: " + jsonString.toString());
 
         }

@@ -25,6 +25,7 @@ import static java.util.Arrays.asList;
  * @since 16.03.16
  */
 public class VirtualNode implements Node {
+
     private static AtomicLong MIN_ID = new AtomicLong(-1);
     private final List<Label> labels = new ArrayList<>();
     private final Map<String, Object> props = new HashMap<>();
@@ -80,7 +81,9 @@ public class VirtualNode implements Node {
 
     private boolean isType(Relationship r, RelationshipType... relationshipTypes) {
         for (RelationshipType type : relationshipTypes) {
-            if (r.isType(type)) return true;
+            if (r.isType(type)) {
+                return true;
+            }
         }
         return false;
     }
@@ -158,7 +161,7 @@ public class VirtualNode implements Node {
 
     @Override
     public int getDegree(RelationshipType relationshipType, Direction direction) {
-        return (int) Iterables.count(getRelationships(relationshipType,direction));
+        return (int) Iterables.count(getRelationships(relationshipType, direction));
     }
 
     @Override
@@ -168,16 +171,20 @@ public class VirtualNode implements Node {
 
     @Override
     public void removeLabel(Label label) {
-        for (Iterator<Label> iterator = labels.iterator(); iterator.hasNext(); ) {
+        for (Iterator<Label> iterator = labels.iterator(); iterator.hasNext();) {
             Label next = iterator.next();
-            if (next.name().equals(label.name())) iterator.remove();
+            if (next.name().equals(label.name())) {
+                iterator.remove();
+            }
         }
     }
 
     @Override
     public boolean hasLabel(Label label) {
         for (Label l : labels) {
-            if (l.name().equals(label.name())) return true;
+            if (l.name().equals(label.name())) {
+                return true;
+            }
         }
         return false;
     }
@@ -210,7 +217,7 @@ public class VirtualNode implements Node {
 
     @Override
     public void setProperty(String s, Object o) {
-        props.put(s,o);
+        props.put(s, o);
     }
 
     @Override
@@ -251,8 +258,7 @@ public class VirtualNode implements Node {
     }
 
     @Override
-    public String toString()
-    {
+    public String toString() {
         return "VirtualNode{" + "labels=" + labels + ", props=" + props + ", rels=" + rels + '}';
     }
 }

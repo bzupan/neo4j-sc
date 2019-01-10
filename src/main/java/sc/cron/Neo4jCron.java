@@ -33,6 +33,8 @@ import java.io.IOException;
 import sc.MapProcess;
 import sc.MapResult;
 import sc.RunCypherQuery;
+import sc.Util;
+import sc.VirtualNode;
 
 public class Neo4jCron {
 
@@ -55,7 +57,7 @@ public class Neo4jCron {
     // VM add list delete
     // ----------------------------------------------------------------------------------
     @UserFunction
-    @Description("CALL sc.cron.addVm('cronName','* * * * *','MATCH (n) RETURN n', {cypherQueryParams:'optional'},{cronScheduler:'optional', cronDelay:0})   // add cron job")
+    @Description("RETURN sc.cron.addVm('cronName','* * * * *','MATCH (n) RETURN n', {cypherQueryParams:'optional'},{cronScheduler:'optional', cronDelay:0})   // add cron job")
     public Map<String, Object> addVm(
             @Name("name") String name,
             @Name("cronString") String cronString,
@@ -89,20 +91,13 @@ public class Neo4jCron {
         return cronMap.getMapElementByNameClean(name);
     }
 
-    @UserFunction
-    @Description("RETURN sc.cron.listVm()  // list all cron jobs")
-    public List< Map<String, Object>> listVm() {
-        log.debug("sc.cron.listVm: " + cronMap.getListFromMapAllClean().toString());
-        return cronMap.getListFromMapAllClean(); //.map(CronJob::new);
-    }
-
-    @Procedure(mode = Mode.WRITE)
-    @Description("CALL sc.cron.listVmProc()  // list all cron jobs")
-    public Stream<MapResult> listVmProc() {
-        String cypherString = "MATCH (n:" + cronNodeLabel + ") RETURN n";
-        return runCypherQuery.executeQueryRaw(db, cypherString).stream().map(MapResult::new);
-    }
-
+    /**
+     * @Procedure(mode = Mode.WRITE)
+     * @Description("CALL sc.cron.listVmProc() // list all cron jobs") public
+     * Stream<MapResult> listVmProc() { String cypherString = "MATCH (n:" +
+     * cronNodeLabel + ") RETURN n"; return runCypherQuery.executeQueryRaw(db,
+     * cypherString).stream().map(MapResult::new); }
+     */
     @UserFunction
     @Description("RETURN sc.cron.deleteVm('cronName')  // remove cron job")
     public Map<String, Object> deleteVm(@Name("name") String name) {
@@ -191,7 +186,7 @@ public class Neo4jCron {
         log.debug("sc.cron.addCronNode " + name + " " + cronString + " " + cypherQuery + " " + cypherQueryParams.toString() + " " + cronParams.toString());
 
         ObjectMapper mapper = new ObjectMapper();
-        
+
         // --- add to DB
         String cypherString = "MERGE (n:" + cronNodeLabel + " {name:'" + name + "', type:'" + cronNodeLabel + "'}) "
                 + "SET n.cronString='" + cronString
@@ -236,6 +231,34 @@ public class Neo4jCron {
         }
         log.debug("sc.cron.listCronNodes cypherString: " + cypherString);
         return cypherNodes;
+    }
+
+    @UserFunction
+    @Description("RETURN sc.cron.listRunning()  // list all cron jobs")
+    public List< Map<String, Object>> listRunning() {
+        log.debug("sc.cron.listVm: " + cronMap.getListFromMapAllClean().toString());
+        return cronMap.getListFromMapAllClean(); //.map(CronJob::new);
+    }
+    
+    @UserFunction
+    @Description("RETURN sc.cron.listRunningAsVnode()  // list all cron jobs")
+    public List<Node> listRunningAsVnode() {
+        log.debug("sc.cron.listVmAsVnode: " + cronMap.getListFromMapAllClean().toString());
+        // --- vNode labels
+        List<String> vnodeLabels = new ArrayList<String>();
+        vnodeLabels.add("CronRunDb");
+
+        // --- vNode list
+        List<Node> listNodes = new ArrayList<Node>();
+
+        for (int i = 0; i < cronMap.getListFromMapAllClean().size(); i++) {
+            // --- vNode properties
+            Map<String, Object> vNodeProps = cronMap.getListFromMapAllClean().get(i);
+            vNodeProps.put("type", "CronRunDb");
+            listNodes.add(new VirtualNode(Util.labels(vnodeLabels), vNodeProps, db));
+
+        }
+        return listNodes;
     }
 
     // ----------------------------------------------------------------------------------

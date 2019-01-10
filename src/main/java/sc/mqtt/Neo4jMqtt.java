@@ -28,6 +28,7 @@ import org.neo4j.procedure.Context;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
+import static org.neo4j.graphdb.RelationshipType.withName;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Result;
 import org.neo4j.graphdb.Transaction;
@@ -39,6 +40,10 @@ import org.neo4j.procedure.UserFunction;
 
 import sc.MapResult;
 import sc.MapProcess;
+import sc.Util;
+import sc.VirtualNode;
+import sc.VirtualRelationship;
+import sc.VirtualPathResult;
 
 public class Neo4jMqtt {
 
@@ -62,6 +67,146 @@ public class Neo4jMqtt {
         return mqttBrokersMap.getListFromMapAllClean();
     }
 
+    @UserFunction
+    @Description("RETURN sc.mqtt.listSubscriptions() ")
+    public List< Map<String, Object>> listSubscriptions() {
+        log.debug("sc.mqtt.listSubscriptions");
+
+        List<Map<String, Object>> subscribeList = new ArrayList<Map<String, Object>>();
+
+        for (int i = 0; i < mqttBrokersMap.getListFromMapAllClean().size(); i++) {
+            Map<String, Object> broker = mqttBrokersMap.getListFromMapAllClean().get(i);
+            log.debug("sc.mqtt.listSubscriptions broker: " + broker.toString());
+            Map<String, Object> brokerSubscriptions = (Map<String, Object>) broker.get("subscribeList");
+            for (Map.Entry<String, Object> entry : brokerSubscriptions.entrySet()) {
+                String key = entry.getKey();
+                Object value = entry.getValue();
+
+                Map<String, Object> subscriptionMap = new HashMap<String, Object>();
+                subscriptionMap.put("mqttBrokerName", broker.get("name"));
+                subscriptionMap.put("topic", key);
+                subscriptionMap.put("cypher", value);
+                log.debug("sc.mqtt.listSubscriptions broker subscription: " + subscriptionMap.toString());
+                subscribeList.add(subscriptionMap);
+            }
+        }
+        log.debug("sc.mqtt.listSubscriptions subscribeList: " + subscribeList.toString());
+        return subscribeList;
+    }
+
+    @UserFunction
+    @Description("RETURN sc.mqtt.listBrokersAsVnode()  // list all cron jobs")
+    public List<Node> listBrokersAsVnode() {
+        log.debug("sc.mqtt.listBrokersAsVnode: " + mqttBrokersMap.getListFromMapAllClean().toString());
+
+        // --- vNode list
+        List<Node> listNodes = new ArrayList<Node>();
+
+        for (int i = 0; i < mqttBrokersMap.getListFromMapAllClean().size(); i++) {
+            // --- vNode labels
+            List<String> vnodeLabels = new ArrayList<String>();
+            vnodeLabels.add("MqttBroker");
+            // --- vNode properties
+            Map<String, Object> vNodeProps = mqttBrokersMap.getListFromMapAllClean().get(i);
+            vNodeProps.put("type", "MqttBroker");
+            listNodes.add(new VirtualNode(Util.labels(vnodeLabels), vNodeProps, db));
+        }
+        return listNodes;
+    }
+
+    @UserFunction
+    @Description("RETURN sc.mqtt.listSubscriptionsAsVnode()  // list all cron jobs")
+    public List<Node> listSubscriptionsAsVnode() {
+        log.debug("sc.mqtt.listSubscriptionsAsVnode: " + mqttBrokersMap.getListFromMapAllClean().toString());
+
+        // --- vNode list
+        List<Node> listNodes = new ArrayList<Node>();
+
+        for (int i = 0; i < mqttBrokersMap.getListFromMapAllClean().size(); i++) {
+
+            // --- get broker
+            Map<String, Object> mqttBroker = mqttBrokersMap.getListFromMapAllClean().get(i);
+            Map<String, Object> subscribeList = (Map<String, Object>) mqttBroker.get("subscribeList");
+
+            // --- get subscriptions
+            for (Map.Entry<String, Object> entry : subscribeList.entrySet()) {
+                String key = entry.getKey();
+                Object value = entry.getValue();
+
+                // --- vNode labels
+                List<String> vnodeLabels = new ArrayList<String>();
+                vnodeLabels.add("MqttBrokerSubscription");
+
+                // --- vNode properties
+                Map<String, Object> vNodeProps = new HashMap<String, Object>();
+                vNodeProps.put("name", mqttBroker.get("name") + "-" + key);
+                vNodeProps.put("type", "MqttBrokerSubscription");
+                vNodeProps.put("mqttBrokerName", mqttBroker.get("name"));
+                vNodeProps.put("topic", key);
+                vNodeProps.put("cypher", value);
+                log.info("sc.mqtt.listBrokersAsVgraph: " + mqttBroker.toString());
+
+                Node mqttBrokerSubscription = new VirtualNode(Util.labels(vnodeLabels), vNodeProps, db);
+                listNodes.add(mqttBrokerSubscription);
+
+                log.info("sc.mqtt.listSubscriptionsAsVnode: " + mqttBrokerSubscription.toString());
+            }
+        }
+        return listNodes;
+    }
+
+    @UserFunction
+    @Description("RETURN sc.mqtt.listBrokersAsVgraph()  // list all cron jobs")
+    public List<VirtualPathResult> listBrokersAsVgraph() {
+        log.debug("sc.mqtt.listBrokersAsVgraph: " + mqttBrokersMap.getListFromMapAllClean().toString());
+
+        // --- vNode list
+        List<Node> listNodes = new ArrayList<Node>();
+        List<Relationship> listRelationships = new ArrayList<Relationship>();
+        List<VirtualPathResult> listPaths = new ArrayList<VirtualPathResult>();
+        for (int i = 0; i < mqttBrokersMap.getListFromMapAllClean().size(); i++) {
+            // --- vNode labels
+            List<String> vnodeLabels = new ArrayList<String>();
+            vnodeLabels.add("MqttBroker");
+            // --- vNode properties
+            Map<String, Object> vNodeProps = mqttBrokersMap.getListFromMapAllClean().get(i);
+            Node mqttBroker = new VirtualNode(Util.labels(vnodeLabels), vNodeProps, db);
+            listNodes.add(mqttBroker);
+
+            Map<String, Object> subscribeList = (Map<String, Object>) vNodeProps.get("subscribeList");
+
+            for (Map.Entry<String, Object> entry : subscribeList.entrySet()) {
+                String key = entry.getKey();
+                Object value = entry.getValue();
+
+                // --- vNode labels
+                List<String> vnodeLabels2 = new ArrayList<String>();
+                vnodeLabels2.add("MqttBrokerSubscription");
+                Map<String, Object> vNodeProps2 = new HashMap<String, Object>();
+                vNodeProps2.put("mqttBrokerName", vNodeProps.get("name"));
+                vNodeProps2.put("topic", key);
+                vNodeProps2.put("cypher", value);
+                log.info("sc.mqtt.listBrokersAsVgraph: " + mqttBroker.toString());
+
+                Node mqttBrokerSubscription = new VirtualNode(Util.labels(vnodeLabels2), vNodeProps2, db);
+
+                listNodes.add(mqttBrokerSubscription);
+                Relationship relation = new VirtualRelationship(mqttBroker, mqttBrokerSubscription, "subscription");
+                listRelationships.add(relation);
+                log.info("sc.mqtt.listBrokersAsVgraph: " + mqttBroker.toString() + relation.toString() + mqttBrokerSubscription.toString());
+
+                VirtualPathResult pathResult = new VirtualPathResult(mqttBroker, relation, mqttBrokerSubscription);
+                listPaths.add(pathResult);
+                //System.out.println(pair.getKey() + " = " + pair.getValue());
+
+            }
+
+            //System.out.println(cronMap.getListFromMapAllClean().get(i));
+        }
+
+        return listPaths; //new VirtualNode(Util.labels(labelNames), props, db);
+    }
+
     // ----------------------------------------------------------------------------------
     // add
     // ----------------------------------------------------------------------------------
@@ -74,7 +219,7 @@ public class Neo4jMqtt {
     ) {
         log.debug("sc.mqtt.addBroker: " + name + " " + mqtt.toString());
 
-        // --- remove broker 
+        // --- remove broker
         this.deleteBroker(name);
 
         // --- get data for connection
@@ -95,7 +240,7 @@ public class Neo4jMqtt {
             MqttClientNeo mqttBrokerNeo4jClient = new MqttClientNeo(brokerUrl, clientId, persistence);
             log.debug("sc.mqtt -  connect ok: " + name + " " + brokerUrl + " " + clientId);
 
-            // --- store broker info 
+            // --- store broker info
             mqttBrokerTmp.put("name", name);
             mqttBrokerTmp.put("clientId", clientId);
             mqttBrokerTmp.put("mqtt", mqtt);
@@ -127,7 +272,7 @@ public class Neo4jMqtt {
         // --- delete broker if exists
         log.debug("sc.mqtt -  deleteBroker try: " + name);
         Map<String, Object> mqttBroker = mqttBrokersMap.getMapElementByName(name);
-         if (!(mqttBroker == null)) {
+        if (!(mqttBroker == null)) {
             if (!(mqttBroker.get("mqttBrokerNeo4jClient") == null)) {
                 MqttClientNeo mqttBrokerNeo4jClient = (MqttClientNeo) mqttBroker.get("mqttBrokerNeo4jClient");
                 mqttBrokerNeo4jClient.unsubscribeAll();
@@ -502,7 +647,7 @@ public class Neo4jMqtt {
                 log.info("sc.mqtt - cypherQuery results:\n" + "\n" + dbResult.resultAsString());
                 tx.success();
             } catch (Exception ex) {
-                 log.error("sc.mqtt - cypherQuery error:\n" + ex.toString());
+                log.error("sc.mqtt - cypherQuery error:\n" + ex.toString());
             }
         }
 

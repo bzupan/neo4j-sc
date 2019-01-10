@@ -17,6 +17,7 @@ import static java.util.Arrays.asList;
  * @since 16.03.16
  */
 public class VirtualRelationship implements Relationship {
+
     private static AtomicLong MIN_ID = new AtomicLong(-1);
     private final Node startNode;
     private final Node endNode;
@@ -29,6 +30,21 @@ public class VirtualRelationship implements Relationship {
         this.startNode = startNode;
         this.endNode = endNode;
         this.type = type;
+    }
+    
+        public VirtualRelationship(Node startNode, Node endNode, String type) {
+        this.id = MIN_ID.getAndDecrement();
+        this.startNode = startNode;
+        this.endNode = endNode;
+        this.type = RelationshipType.withName(type);
+    }
+
+    public VirtualRelationship(Node startNode, Node endNode, RelationshipType type, Map<String, Object> props) {
+        this.id = MIN_ID.getAndDecrement();
+        this.startNode = startNode;
+        this.endNode = endNode;
+        this.type = type;
+        this.props.putAll(props);
     }
 
     public VirtualRelationship(long id, Node startNode, Node endNode, RelationshipType type, Map<String, Object> props) {
@@ -46,8 +62,12 @@ public class VirtualRelationship implements Relationship {
 
     @Override
     public void delete() {
-        if (getStartNode() instanceof VirtualNode) ((VirtualNode) getStartNode()).delete(this);
-        if (getEndNode() instanceof VirtualNode) ((VirtualNode) getEndNode()).delete(this);
+        if (getStartNode() instanceof VirtualNode) {
+            ((VirtualNode) getStartNode()).delete(this);
+        }
+        if (getEndNode() instanceof VirtualNode) {
+            ((VirtualNode) getEndNode()).delete(this);
+        }
     }
 
     @Override
@@ -67,9 +87,9 @@ public class VirtualRelationship implements Relationship {
 
     @Override
     public Node[] getNodes() {
-        return new Node[] {
+        return new Node[]{
             startNode, endNode
-        } ;
+        };
     }
 
     @Override
@@ -147,9 +167,8 @@ public class VirtualRelationship implements Relationship {
     }
 
     @Override
-    public String toString()
-    {
-        return "VirtualRelationship{" + "startNode=" + startNode.getLabels() + ", endNode=" + endNode.getLabels() + ", " +
-                "type=" + type + '}';
+    public String toString() {
+        return "VirtualRelationship{" + "startNode=" + startNode.getLabels() + ", endNode=" + endNode.getLabels() + ", "
+                + "type=" + type + '}';
     }
 }

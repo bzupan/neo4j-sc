@@ -178,7 +178,7 @@ public class EvalJavaScript {
             Object javaScriptResult = null;
             log.debug("sc.javascript.run jsScript: " + jsScript + " jsParams: " + jsParams.toString());
             Map<String, Object> jsParamsMap;
-            
+
             if (jsParams instanceof Map) {
                 jsParamsMap = (Map<String, Object>) jsParams;
                 javaScriptResult = evalJavascript(jsScript, jsParamsMap);

@@ -10,7 +10,6 @@ import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URLEncoder;
 
-
 /**
  * url encode string
  */

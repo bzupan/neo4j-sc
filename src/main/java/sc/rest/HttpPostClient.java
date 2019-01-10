@@ -207,7 +207,6 @@ public class HttpPostClient {
                                                         NoopHostnameVerifier.INSTANCE))
                                                 .build()
                                 ))
-                        
                         .setMaxConnTotal(20)
                         .setMaxConnPerRoute(20)
                         .setConnectionTimeToLive(300000, TimeUnit.MILLISECONDS)
@@ -290,7 +289,6 @@ public class HttpPostClient {
                     // Returns the timeout in milliseconds used when requesting a connection
                     // from the connection manager.
                     .setConnectionRequestTimeout(timeoutSec * 1000)
-                    
                     .build();
 
             CloseableHttpClient httpClient;

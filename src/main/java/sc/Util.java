@@ -37,62 +37,87 @@ import static java.lang.String.format;
  * @since 24.04.16
  */
 public class Util {
+
     public static final Label[] NO_LABELS = new Label[0];
     public static final String NODE_COUNT = "MATCH (n) RETURN count(*) as result";
     public static final String REL_COUNT = "MATCH ()-->() RETURN count(*) as result";
     public static final String COMPILED = "interpreted"; // todo handle enterprise properly
 
     public static String labelString(Node n) {
-        return StreamSupport.stream(n.getLabels().spliterator(),false).map(Label::name).sorted().collect(Collectors.joining(":"));
+        return StreamSupport.stream(n.getLabels().spliterator(), false).map(Label::name).sorted().collect(Collectors.joining(":"));
     }
+
     public static List<String> labelStrings(Node n) {
-        return StreamSupport.stream(n.getLabels().spliterator(),false).map(Label::name).sorted().collect(Collectors.toList());
+        return StreamSupport.stream(n.getLabels().spliterator(), false).map(Label::name).sorted().collect(Collectors.toList());
     }
+
     public static Label[] labels(Object labelNames) {
-        if (labelNames==null) return NO_LABELS;
+        if (labelNames == null) {
+            return NO_LABELS;
+        }
         if (labelNames instanceof List) {
             List names = (List) labelNames;
             Label[] labels = new Label[names.size()];
             int i = 0;
             for (Object l : names) {
-                if (l==null) continue;
+                if (l == null) {
+                    continue;
+                }
                 labels[i++] = Label.label(l.toString());
             }
-            if (i <= labels.length) return Arrays.copyOf(labels,i);
+            if (i <= labels.length) {
+                return Arrays.copyOf(labels, i);
+            }
             return labels;
         }
         return new Label[]{Label.label(labelNames.toString())};
     }
 
     public static RelationshipType type(Object type) {
-        if (type == null) throw new RuntimeException("No relationship-type provided");
+        if (type == null) {
+            throw new RuntimeException("No relationship-type provided");
+        }
         return RelationshipType.withName(type.toString());
     }
 
     @SuppressWarnings("unchecked")
     public static LongStream ids(Object ids) {
-        if (ids == null) return LongStream.empty();
-        if (ids instanceof Number) return LongStream.of(((Number)ids).longValue());
-        if (ids instanceof Node) return LongStream.of(((Node)ids).getId());
-        if (ids instanceof Relationship) return LongStream.of(((Relationship)ids).getId());
+        if (ids == null) {
+            return LongStream.empty();
+        }
+        if (ids instanceof Number) {
+            return LongStream.of(((Number) ids).longValue());
+        }
+        if (ids instanceof Node) {
+            return LongStream.of(((Node) ids).getId());
+        }
+        if (ids instanceof Relationship) {
+            return LongStream.of(((Relationship) ids).getId());
+        }
         if (ids instanceof Collection) {
             Collection<Object> coll = (Collection<Object>) ids;
-            return coll.stream().mapToLong( (o) -> ((Number)o).longValue());
+            return coll.stream().mapToLong((o) -> ((Number) o).longValue());
         }
         if (ids instanceof Iterable) {
             Spliterator<Object> spliterator = ((Iterable) ids).spliterator();
-            return StreamSupport.stream(spliterator,false).mapToLong( (o) -> ((Number)o).longValue());
+            return StreamSupport.stream(spliterator, false).mapToLong((o) -> ((Number) o).longValue());
         }
-        throw new RuntimeException("Can't convert "+ids.getClass()+" to a stream of long ids");
+        throw new RuntimeException("Can't convert " + ids.getClass() + " to a stream of long ids");
     }
 
     public static Stream<Object> stream(Object values) {
-        if (values == null) return Stream.empty();
-        if (values instanceof Collection) return ((Collection)values).stream();
-        if (values instanceof Object[]) return Stream.of(((Object[])values));
+        if (values == null) {
+            return Stream.empty();
+        }
+        if (values instanceof Collection) {
+            return ((Collection) values).stream();
+        }
+        if (values instanceof Object[]) {
+            return Stream.of(((Object[]) values));
+        }
         if (values instanceof Iterable) {
             Spliterator<Object> spliterator = ((Iterable) values).spliterator();
-            return StreamSupport.stream(spliterator,false);
+            return StreamSupport.stream(spliterator, false);
         }
         return Stream.of(values);
     }
@@ -102,9 +127,13 @@ public class Util {
     }
 
     public static Node node(GraphDatabaseService db, Object id) {
-        if (id instanceof Node) return (Node)id;
-        if (id instanceof Number) return db.getNodeById(((Number)id).longValue());
-        throw new RuntimeException("Can't convert "+id.getClass()+" to a Node");
+        if (id instanceof Node) {
+            return (Node) id;
+        }
+        if (id instanceof Number) {
+            return db.getNodeById(((Number) id).longValue());
+        }
+        throw new RuntimeException("Can't convert " + id.getClass() + " to a Node");
     }
 
     public static Stream<Relationship> relsStream(GraphDatabaseService db, Object ids) {
@@ -112,20 +141,22 @@ public class Util {
     }
 
     public static Relationship relationship(GraphDatabaseService db, Object id) {
-        if (id instanceof Relationship) return (Relationship)id;
-        if (id instanceof Number) return db.getRelationshipById(((Number)id).longValue());
-        throw new RuntimeException("Can't convert "+id.getClass()+" to a Relationship");
+        if (id instanceof Relationship) {
+            return (Relationship) id;
+        }
+        if (id instanceof Number) {
+            return db.getRelationshipById(((Number) id).longValue());
+        }
+        throw new RuntimeException("Can't convert " + id.getClass() + " to a Relationship");
     }
 
 //    public static double doubleValue(PropertyContainer pc, String prop, Number defaultValue) {
 //        return toDouble(pc.getProperty(prop, defaultValue));
 //
 //    }
-
 //    public static double doubleValue(PropertyContainer pc, String prop) {
 //        return doubleValue(pc, prop, 0);
 //    }
-
     public static Direction parseDirection(String direction) {
         if (null == direction) {
             return Direction.BOTH;
@@ -159,7 +190,6 @@ public class Util {
 //        }
 //        return relationshipTypes.toArray(new RelationshipType[relationshipTypes.size()]);
 //    }
-
     public static <T> Future<T> inTxFuture(ExecutorService pool, GraphDatabaseService db, Callable<T> callable) {
         try {
             return pool.submit(() -> {

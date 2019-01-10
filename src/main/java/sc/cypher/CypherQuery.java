@@ -116,7 +116,7 @@ public class CypherQuery {
         // --- add to DB
         String cypherQueryModified = cypherQuery.replaceAll("'", "\\\\'");
         String cypherString = "MERGE (n:" + cypherQueryNodeLabel + " {name:'" + name + "', type:'" + cypherQueryNodeLabel + "'}) "
-                + "SET n.cypherQuery='" + cypherQueryModified+ "' RETURN n";
+                + "SET n.cypherQuery='" + cypherQueryModified + "' RETURN n";
 
         log.info("sc.cypher.addDb cypherString: " + cypherQueryModified);
         log.info("sc.cypher.addDb: " + name);
