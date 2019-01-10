@@ -502,7 +502,7 @@ public class Neo4jMqtt {
                 log.info("sc.mqtt - cypherQuery results:\n" + "\n" + dbResult.resultAsString());
                 tx.success();
             } catch (Exception ex) {
-                log.error("sc.mqtt - cypherQuery error:\n" + ex.toString());
+                 log.error("sc.mqtt - cypherQuery error:\n" + ex.toString());
             }
         }
 
