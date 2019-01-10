@@ -83,6 +83,8 @@ public class Neo4jMqtt {
                 Object value = entry.getValue();
 
                 Map<String, Object> subscriptionMap = new HashMap<String, Object>();
+                subscriptionMap.put("name", broker.get("name") + "-" + key);
+                subscriptionMap.put("type", "MqttBrokerSubscription");
                 subscriptionMap.put("mqttBrokerName", broker.get("name"));
                 subscriptionMap.put("topic", key);
                 subscriptionMap.put("cypher", value);
