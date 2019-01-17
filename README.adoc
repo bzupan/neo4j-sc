@@ -11,11 +11,11 @@ vi /etc/neo4j/neo4j.conf
 dbms.security.procedures.unrestricted=apoc.*,sc.*
 dbms.security.procedures.whitelist=apoc.*,sc.*
 ----
-- copy sc-neo4j-3.4.x.x.jar to Neo4j plugins directory e.g.:
+- copy sc-neo4j-3.5.x.x.jar to Neo4j plugins directory e.g.:
 
 [source,bash]
 ----
-cp ./sc-neo4j-3.x.x.x.jar /var/lib/neo4j/plugins
+cp ./sc-neo4j-3.5.x.x.jar /var/lib/neo4j/plugins
 ----
 - restart neo4j services
 [source,bash]
@@ -37,9 +37,37 @@ CALL dbms.procedures()
 tail -f /var/log/neo4j/debug.log
 ----
 
+
+===  Logging from CYPHER to Neo4j system log
+==== sc.log.info - function
+sc.log.info('logString',logObject) +
+- log to Neo4j system log: /var/log/neo4j/debug.log  +
+- logObject is returned +
+- logObject can be node, ralation, map  +
+
+====== Example
+[source,cypher]
+----
+CREATE (n:test {propKeyString:"string, propkeyInt:123})
+WITH n AS testNode
+WITH sc.log.info('test node: ',testNode) AS testNodeFromLog
+RETURN testNodeFromLog
+----
+[source,cypher]
+----
+tail -f /var/log/neo4j/debug.log
+
+2019-01-17 12:31:10.435+0000 INFO [o.n.k.i.p.Procedures] sc.log: test node:  {"propKeyString":"string","propkeyInt":123}
+
+----
+
+
+
+
 === http post
-==== urlEncodeString - function
-- sc.rest.urlEncodeString('string') - return url encoded string
+==== sc.rest.urlEncodeString - function
+sc.rest.urlEncodeString('string') +
+- return url encoded string
 
 ====== Example
 [source,cypher]
@@ -57,13 +85,22 @@ RETURN sc.rest.urlEncodeString('aaa.bbb@email.com {jsonString:"!"#$&/()"}') AS u
 ----
 
 
-==== httpPostJson - function
+==== sc.rest.jsonPost - function
 Run http/https json post and receive response from REST - based on Apache HttpComponents!
 
-- sc.rest.jsonPost("urlString", {json document}) - return json document
-- sc.rest.jsonPost("urlString", neo4jNode) - return json document
-- sc.rest.jsonPost("urlString", neo4jRelationship) - return json document
+JSON POST request +
+- sc.rest.jsonPost("urlString", {json document}, options) - return json document + 
+- sc.rest.jsonPost("urlString", neo4jNode, options) - return json document +
+- sc.rest.jsonPost("urlString", neo4jRelationship, options) - return json document +
 
+options
+[source,node.js]
+----
+{ 
+ enableInsecureHttps: true/false,
+ enableErrorMessage: true/false
+} 
+----
 ====== Example
 node.js REST server
 [source,node.js]
@@ -231,8 +268,42 @@ RETURN sc.rest.jsonPost("http://127.0.0.1/restTest", r) AS postResponseRelations
 ----
 
 
+==== sc.rest.jsonRpc2 - function
+Run http/https json RPC post and receive response from jsonRpc2 REST  server - based on Apache HttpComponents!
+
+JSON POST request +
+- sc.rest.jsonRpc2("urlString", "rpcMethod", {json: "document"}, options) - return json document + 
 
 
+options
+[source,node.js]
+----
+{ 
+ enableInsecureHttps: true/false,
+ enableErrorMessage: true/false
+} 
+----
+====== Example
+[source,cypher]
+----
+RETURN sc.rest.jsonRpc2('https://10.20.20.13:10443/jsonRpc2RestPost', 'pingIpAddress', {ipAddress:'8.8.8.8'},{enableInsecureHttps: true, enableErrorMessage:true}) AS pingResponse
+----
+[source,cypher]
+----
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++"pingResponse"                                                        +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+│{"pingStatusOK":true,"rttAvgMs":9.473,"jitterMdevMs":null,"testMetaDat│
+│a":{"pingStatusOK":true,"rttAvgMs":9.473,"jitterMdevMs":0.0,"testReque│
+│st":{"ipAddress":"8.8.8.8","pingInterval":1.0,"mtuCheck":" ","pingPack│
+│etSize":56.0,"execShellCommandRequest":{"command":"ping -c 1 -i 1  -s5│
+│6 8.8.8.8  |grep 'rtt\|transmitted'","timeoutSec":12.0},"pingCount":1.│
+│0},"jitterMinMaxMs":0.0,"pingStatus":"up","packetLossPercent":0.0,"rtt│
+│MaxMs":9.473,"rttMinMs":9.473},"jitterMinMaxMs":null,"error":null,"pin│
+│gStatus":"up","packetLossPercent":0.0,"rttMaxMs":9.473,"rttMinMs":9.47│
+│3}
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+----
 
 === Cypher
 
@@ -400,85 +471,91 @@ CALL sc.cypher.runVm("findPerson", {name:"abc"})
 
 
 ==== Cypher Neo4j CRON - functions/procedures
-Run cypher query by cron - based on cron4j library.
+Run cypher query by cron schedule - based on cron4j library.
 
-- sc.cron.list()  - list all cron jobs
-- sc.cron.delete('cronName')  - remove cron job
-- sc.cron.add('cronName','* * * * *','MATCH (n) RETURN n', {cypherQueryParams:'optional'},{cronScheduler':optional', cronDelay:0})   - add cron job
-- sc.cron.run('cronName') - run cron job
+Managing CRON Neo4j nodes + 
+[source,cypher]
+----
+CALL sc.cron.addCronNode('cronName','* * * * *','MERGE (n:testNode) SET n.timestamp=timestamp() RETURN n', {cypherQueryParams:'optional'},{cronScheduler:'optional', cronDelay:0})
+RETURN sc.cron.listCronNodes() 
+CALL sc.cron.deleteCronNode('cronName') 
 
+CALL sc.cron.startCronNode('cronName') 
+CALL sc.cron.stopCronNode('cronName')
+----
 
+Managing CRON Neo4j from Java VM + 
+[source,cypher]
+----
+RETURN sc.cron.addVm('cronName','* * * * *','MATCH (n) RETURN n', {cypherQueryParams:'optional'},{cronScheduler:'optional', cronDelay:0})
+RETURN sc.cron.deleteVm('cronName')
+----
 
+Managing CRON Neo4j tasks
+[source,cypher]
+----
+RETURN sc.cron.listRunning() 
+RETURN sc.cron.listRunningAsVnode() 
+----
+
+Run CRON Neo4j task
+[source,cypher]
+----
+CALL sc.cron.runCronNode('cronName')
+----
 ====== Example
 Add  CRON task:
 [source,cypher]
 ----
 WITH "MERGE (n:CronNode  ) ON CREATE SET n.created = timestamp(), n.count = 1 ON MATCH SET n.update = timestamp(), n.count = n.count+1 RETURN n" AS createTestNode 
-CALL sc.cron.add('cronName','* * * * *',createTestNode) YIELD value AS cronAdd
+CALL sc.cron.addCronNode('cronName','* * * * *',createTestNode) YIELD value AS cronAdd
 RETURN cronAdd
 
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-+"cronAdd"                                                             +
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-+{"name":"cronName","cronRunError":0,"cypherQuery":"MERGE (n:CronNode  +
-+) ON CREATE SET n.created = timestamp(), n.count = 1 ON MATCH SET n.up+
-+date = timestamp(), n.count = n.count+1 RETURN n","cronRunOk":0,"cronS+
-+tring":"* * * * *","cypherParams":{}}                                 +
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+╒══════════════════════════════════════════════════════════════════════╕
+│"cronAdd"                                                             │
+╞══════════════════════════════════════════════════════════════════════╡
+│{"n":{"cypherQuery":"MERGE (n:CronNode  ) ON CREATE SET n.created = ti│
+│mestamp(), n.count = 1 ON MATCH SET n.update = timestamp(), n.count = │
+│n.count+1 RETURN n","cronStatus":"initialized ","cronString":"* * * * │
+│*","cypherParams":"{}","name":"cronName","cronParams":"{"cronDelay":0}│
+│","type":"CronRunDb"}}                                                │
+└──────────────────────────────────────────────────────────────────────┘
 
 
 
 ----
 
-Check Neo4j CRON tasks.
+Start Neo4j CRON node tasks.
 [source,cypher]
 ----
-RETURN sc.cron.list()
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-+"sc.cron.list()"                                                      +
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-+[{"name":"cronName","cronRunError":0,"cypherQuery":"MERGE (n:CronNode +
-+ ) ON CREATE SET n.created = timestamp(), n.count = 1 ON MATCH SET n.u+
-+pdate = timestamp(), n.count = n.count+1 RETURN n","cronRunOk":2,"cron+
-+String":"* * * * *","cypherParams":{}}]                               +
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+CALL sc.cron.startCronNode('cronName')
+╒══════════════════════════════════════════════════════════════════════╕
+│"value"                                                               │
+╞══════════════════════════════════════════════════════════════════════╡
+│{"n":[{"cypherQuery":"MERGE (n:CronNode  ) ON CREATE SET n.created = t│
+│imestamp(), n.count = 1 ON MATCH SET n.update = timestamp(), n.count =│
+│ n.count+1 RETURN n","cronStatus":"running","cronString":"* * * * *","│
+│cypherParams":"{}","name":"cronName","cronParams":"{"cronDelay":0}","t│
+│ype":"CronRunDb"}]}                                                   │
+└──────────────────────────────────────────────────────────────────────┘
 ----
 
+list running Neo4j CRON node tasks.
 [source,cypher]
 ----
-RETURN sc.cron.list()
-WITH sc.cron.list() AS cronList
-UNWIND cronList AS cron
-RETURN cron.name, cron.cronRunOk
+CALL sc.cron.listRunning()
 ----
 
+Stop Neo4j CRON node tasks.
 [source,cypher]
 ----
-WITH "WITH sc.cron.list() AS cronList
-UNWIND cronList AS cron
-RETURN cron.name, cron.cronRunOk" AS getCronStatus
-CALL sc.cypher.addDb('getCronStatus', getCronStatus) YIELD value
-RETURN value
-
-CALL sc.cypher.runDb('getCronStatus', {})
-?????????????????????????????????????????????
-?"value"                                    ?
-?????????????????????????????????????????????
-?{"cron.name":"cronName","cron.cronRunOk":9}?
-?????????????????????????????????????????????
+CALL sc.cron.stopCronNode('cronName')
 ----
 
-
-Check Nodes created by Neo4j CRON.
+Delete Neo4j CRON node.
 [source,cypher]
 ----
-MATCH (n:CronNode) RETURN n
-----
-
-Run Neo4j CRON task.
-[source,cypher]
-----
-CALL sc.cron.run('cronName')
+CALL sc.cron.deleteCronNode('cronName')
 ----
 
 
