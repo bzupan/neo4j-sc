@@ -71,7 +71,7 @@ public class Trigger {
     }
 
     @UserFunction
-    @Description("RETURN sc.commit.registerNodePropertieTriggerAfter('propertieKey') // cypher properties {node=Node[1116], valueOld=oldValue, id=1116, value=1232, key=propertieKey, labels=[test]}")
+    @Description("RETURN sc.commit.removeNodePropertieTriggerAfter('propertieKey') // cypher properties {node=Node[1116], valueOld=oldValue, id=1116, value=1232, key=propertieKey, labels=[test]}")
     public Map<String, Object> removeNodePropertieTriggerAfter(
             @Name("propertieKey") String propertieKey
     ) {

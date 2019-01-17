@@ -662,10 +662,11 @@ Neo4j commit triggers on node propertie update
 Managing  triggers
 [source,cypher]
 ----
-RETURN sc.commit.registerNodePropertieTriggerAfter(
+RETURN sc.commit.registerNodePropertieTriggerBefore(
  'propertieKey', 
- 'MATCH (n) WHERE ID(n)=$id SET n.triggeredAfter=true'
-)
+ 'MATCH (n) WHERE ID(n)=$id SET n.triggeredBefore=true'
+) 
+
 RETURN sc.commit.registerNodePropertieTriggerAfter(
  'propertieKey', 
  'MATCH (n) WHERE ID(n)=$id SET n.triggeredAfter=true'
@@ -673,8 +674,8 @@ RETURN sc.commit.registerNodePropertieTriggerAfter(
  
 RETURN sc.commit.listTriggers() 
 
-RETURN sc.commit.registerNodePropertieTriggerBefore('propertieKey') 
-RETURN sc.commit.removeNodePropertieTriggerBefore('propertieKey') 
+RETURN sc.commit.removeNodePropertieTriggerBefore('propertieKey')
+RETURN sc.commit.removeNodePropertieTriggerAfter('propertieKey') 
 
 ----
 
