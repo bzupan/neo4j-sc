@@ -659,7 +659,7 @@ Remove MqTT subscription.
 ==== Neo4j commit triggers
 Neo4j commit triggers on node propertie update
 
-Managing  MqTT brokers
+Managing  triggers
 [source,cypher]
 ----
 RETURN sc.commit.registerNodePropertieTriggerAfter(
