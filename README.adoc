@@ -564,40 +564,89 @@ CALL sc.cron.deleteCronNode('cronName')
 ==== Cypher Neo4j MqTT client - functions/procedures
 MqTT publish subscribe from Neo4j - based on org.eclipse.paho.client.mqttv3 library.
 
--  sc.mqtt.list() // list MqTT brokers
--  sc.mqtt.add('mqttBrokerName', {brokerUrl:'tcp://iot.eclipse.org:1883', clientId:'123'  })   - add MqTT broker client
--  sc.mqtt.delete('mqttBrokerName') - delete MqTT broker client
--  sc.mqtt.publish('mqttBrokerName', '/mqtt/topic/path', 'message') - publish message
--  sc.mqtt.subscribe('mqttBrokerName', '/mqtt/topic/path','cypherQuery' ) - subscribe cypher query to mqtt messages
--  sc.mqtt.unSubscribe('mqttBrokerName', '/mqtt/topic/path') - subscribe cypher query to mqtt messages
+Managing  MqTT brokers
+[source,cypher]
+----
+RETURN sc.mqtt.addBroker(
+ 'mqttBrokerName', 
+ {
+  brokerUrl:'tcp://iot.eclipse.org:1883', 
+  clientId:'123'  
+ }
+) 
+RETURN sc.mqtt.listBrokers()
+RETURN sc.mqtt.listBrokersAsVnode()
+RETURN sc.mqtt.deleteBroker('mqttBrokerName')
+----
+
+MqTT publish
+[source,cypher]
+----
+CALL sc.mqtt.publishValue(
+  'mqttBrokerName', 
+  '/mqtt/topic/path', 
+  'value'
+}
+
+CALL sc.mqtt.publishJson(
+ 'mqttBrokerName', 
+ '/mqtt/topic/path', 
+ {message:123}
+)
+
+CALL sc.mqtt.publishJsonRpc2(
+ 'graphTravelerMaster', 
+ 'pingIpAddress', 
+ {ipAddress:'10.20.20.13'}
+)
+----
+
+MqTT subscribe
+[source,cypher]
+----
+CALL sc.mqtt.subscribeValue(
+ 'mqttBrokerName', 
+  '/mqtt/topic/path',
+  'MERGE (n:mqttTest) ON CREATE SET n.count=1, n.message=$message ON MATCH SET n.count = n.count +1, n.message=$message '
+)
+
+CALL sc.mqtt.subscribeJson(
+  'mqttBrokerName', 
+  '/mqtt/topic/path',
+  'MERGE (n:mqttTest) ON CREATE SET n.count=1, n.message=$message ON MATCH SET n.count = n.count +1, n.message=$message '
+)
+
+RETURN sc.mqtt.listBrokersAsVnode()
+RETURN sc.mqtt.listSubscriptionsAsVnode()
+
+CALL sc.mqtt.unSubscribeTopic('mqttBrokerName', '/mqtt/topic/path  )
+CALL sc.mqtt.unSubscribeJsonRpc2('mqttBrokerName', 'pingIpAddress' )
+----
 
 
 ====== Example
 Add MqTT broker connection, subscribe to topic and publish:
 [source,cypher]
 ----
-RETURN sc.mqtt.add('mqttBrokerName', {brokerUrl:'tcp://iot.eclipse.org:1883' ,clientId:'Neo4jTestClient'  })
-CALL sc.mqtt.subscribe('mqttBrokerName', '/mqtt/topic/path','CREATE (n:MqttNode) SET n.name=$name')
-CALL sc.mqtt.publish('mqttBrokerName', '/mqtt/topic/path',{name:"abc"})
-RETURN sc.mqtt.list()
+
 ----
 
 Check Nodes created by Neo4j MqTT subsciber.
 [source,cypher]
 ----
-MATCH (n:MqttNode) RETURN n
+
 ----
 
 List MqTT broker connections.
 [source,cypher]
 ----
-RETURN sc.mqtt.list()
+
 ----
 
 Remove MqTT subscription.
 [source,cypher]
 ----
-RETURN sc.mqtt.unSubscribe('mqttBrokerName','/mqtt/topic/path')
+
 ----
 
 [source,cypher]
@@ -606,6 +655,28 @@ RETURN sc.mqtt.unSubscribe('mqttBrokerName','/mqtt/topic/path')
 ----
 
 
+
+==== Neo4j commit triggers
+Neo4j commit triggers on node propertie update
+
+Managing  MqTT brokers
+[source,cypher]
+----
+RETURN sc.commit.registerNodePropertieTriggerAfter(
+ 'propertieKey', 
+ 'MATCH (n) WHERE ID(n)=$id SET n.triggeredAfter=true'
+)
+RETURN sc.commit.registerNodePropertieTriggerAfter(
+ 'propertieKey', 
+ 'MATCH (n) WHERE ID(n)=$id SET n.triggeredAfter=true'
+)
+ 
+RETURN sc.commit.listTriggers() 
+
+RETURN sc.commit.registerNodePropertieTriggerBefore('propertieKey') 
+RETURN sc.commit.removeNodePropertieTriggerBefore('propertieKey') 
+
+----
 
 
 
