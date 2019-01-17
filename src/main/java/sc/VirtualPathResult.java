@@ -1,6 +1,5 @@
 package sc;
 
-
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 
@@ -9,6 +8,7 @@ import org.neo4j.graphdb.Relationship;
  * @since 26.02.16
  */
 public class VirtualPathResult {
+
     public final Node from;
     public final Relationship rel;
     public final Node to;

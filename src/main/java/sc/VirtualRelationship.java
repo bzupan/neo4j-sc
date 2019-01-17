@@ -31,8 +31,8 @@ public class VirtualRelationship implements Relationship {
         this.endNode = endNode;
         this.type = type;
     }
-    
-        public VirtualRelationship(Node startNode, Node endNode, String type) {
+
+    public VirtualRelationship(Node startNode, Node endNode, String type) {
         this.id = MIN_ID.getAndDecrement();
         this.startNode = startNode;
         this.endNode = endNode;

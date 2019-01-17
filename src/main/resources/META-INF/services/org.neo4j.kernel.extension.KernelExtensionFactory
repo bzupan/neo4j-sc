@@ -1,1 +1,1 @@
-sc.triggers.RegisterTransactionEventHandlerExtensionFactory
+sc.commit.TriggerRegister

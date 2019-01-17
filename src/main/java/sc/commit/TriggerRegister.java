@@ -1,9 +1,4 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
-package sc.triggers;
+package sc.commit;
 
 /**
  *
@@ -21,9 +16,10 @@ import org.neo4j.logging.Log;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import sc.triggers.ScTransactionEventHandler;
+import sc.commit.Trigger.TriggerHandler;
 
-public class RegisterTransactionEventHandlerExtensionFactory extends KernelExtensionFactory<RegisterTransactionEventHandlerExtensionFactory.Dependencies> {
+public class TriggerRegister extends KernelExtensionFactory<TriggerRegister.Dependencies> {
+
     private Log logger;
 
     @Override
@@ -31,14 +27,14 @@ public class RegisterTransactionEventHandlerExtensionFactory extends KernelExten
         return new LifecycleAdapter() {
             LogService log = dependencies.log();
 
-            private ScTransactionEventHandler handler;
+            private TriggerHandler handler;
             private ExecutorService executor;
 
             @Override
             public void start() {
                 System.out.println("STARTING trigger watcher");
-                executor = Executors.newFixedThreadPool(2);
-                handler = new ScTransactionEventHandler(dependencies.getGraphDatabaseService(), executor, log);
+                executor = Executors.newFixedThreadPool(1);
+                handler = new TriggerHandler(dependencies.getGraphDatabaseService(), executor, log);
                 dependencies.getGraphDatabaseService().registerTransactionEventHandler(handler);
             }
 
@@ -52,11 +48,13 @@ public class RegisterTransactionEventHandlerExtensionFactory extends KernelExten
     }
 
     interface Dependencies {
+
         GraphDatabaseService getGraphDatabaseService();
+
         LogService log();
     }
 
-    public RegisterTransactionEventHandlerExtensionFactory() {
+    public TriggerRegister() {
         super(ExtensionType.DATABASE, "registerTransactionEventHandler");
         this.logger = null;
     }

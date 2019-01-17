@@ -45,7 +45,7 @@ public class Neo4jLog {
     public Log log;
 
     @UserFunction
-    @Description("RETURN sc.log.info('log info ')  // ")
+    @Description("RETURN sc.log.info('logString',logObject)  // ")
     public Map<String, Object> info(
             @Name("logString") Object logString,
             @Name(value = "logObject", defaultValue = "{}") Map<String, Object> logObject

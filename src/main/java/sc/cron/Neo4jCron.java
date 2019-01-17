@@ -120,7 +120,7 @@ public class Neo4jCron {
     // start - stop
     // ----------------------------------------------------------------------------------
     @Procedure(mode = Mode.WRITE)
-    @Description("CALL sc.cron.startCronNode('cronName')   // add cron job")
+    @Description("CALL sc.cron.startCronNode('cronName')   // start cron")
     public Stream<MapResult> startCronNode(
             @Name("name") String name) throws IOException {
         log.debug("sc.cron.startCronNode: " + name);
@@ -161,7 +161,7 @@ public class Neo4jCron {
     }
 
     @Procedure(mode = Mode.WRITE)
-    @Description("CALL sc.cron.stopCronNode('cronName')   // add cron job")
+    @Description("CALL sc.cron.stopCronNode('cronName')")
     public Stream<MapResult> stopCronNode(
             @Name("name") String name) {
         String cypherString = "MATCH (n:" + cronNodeLabel + " {name:'" + name + "', type:'" + cronNodeLabel + "'}) SET n.cronStatus='stopped' RETURN n";
@@ -239,7 +239,7 @@ public class Neo4jCron {
         log.debug("sc.cron.listVm: " + cronMap.getListFromMapAllClean().toString());
         return cronMap.getListFromMapAllClean(); //.map(CronJob::new);
     }
-    
+
     @UserFunction
     @Description("RETURN sc.cron.listRunningAsVnode()  // list all cron jobs")
     public List<Node> listRunningAsVnode() {
