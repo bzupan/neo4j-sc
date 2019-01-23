@@ -4,7 +4,7 @@
   <groupId>org.sc.neo4j</groupId>
   <artifactId>sc-neo4j</artifactId>
   <name>Neo4j Procedure Functions</name>
-  <version>3.5.0.3</version>
+  <version>3.5.2.1</version>
   <description>Smart Com Neo4j procedures functions</description>
   <build>
     <plugins>
@@ -48,7 +48,7 @@
     <dependency>
       <groupId>org.neo4j</groupId>
       <artifactId>neo4j</artifactId>
-      <version>3.5.0</version>
+      <version>3.5.2</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -72,6 +72,10 @@
           <groupId>org.neo4j</groupId>
         </exclusion>
         <exclusion>
+          <artifactId>neo4j-data-collector</artifactId>
+          <groupId>org.neo4j</groupId>
+        </exclusion>
+        <exclusion>
           <artifactId>neo4j-cypher</artifactId>
           <groupId>org.neo4j</groupId>
         </exclusion>
@@ -91,7 +95,7 @@
     </dependency>
   </dependencies>
   <properties>
-    <neo4j.version>3.5.0</neo4j.version>
+    <neo4j.version>3.5.2</neo4j.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 </project>

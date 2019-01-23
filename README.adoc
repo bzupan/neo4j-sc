@@ -677,6 +677,39 @@ RETURN sc.commit.listTriggers()
 RETURN sc.commit.removeNodePropertieTriggerBefore('propertieKey')
 RETURN sc.commit.removeNodePropertieTriggerAfter('propertieKey') 
 
+
+// --- chain -------------------------------------
+
+CREATE (:testNode {p1:0})
+CREATE (:testNode {p2:0})
+CREATE (:testNode {p3:0})
+// --- check
+MATCH (n:testNode) RETURN n
+
+// --- add triggess
+RETURN sc.commit.registerNodePropertieTriggerAfter(
+ 'p1', 
+ 'MATCH (n:testNode) WHERE EXISTS(n.p2) SET n.p2=n.p2 +1, n.triggeredAfter=true'
+)
+
+RETURN sc.commit.registerNodePropertieTriggerAfter(
+ 'p2', 
+ 'MATCH (n:testNode) WHERE EXISTS(n.p3) SET n.p3=n.p3 +1, n.triggeredAfter=true'
+)
+// --- check
+RETURN sc.commit.listTriggers()
+
+// --- run and check
+MATCH (n:testNode) WHERE EXISTS(n.p1) SET n.p1=1
+MATCH (n:testNode) RETURN n
+
+// --- remove
+RETURN sc.commit.listTriggers()
+RETURN sc.commit.removeNodePropertieTriggerAfter( 'p1')
+RETURN sc.commit.removeNodePropertieTriggerAfter( 'p2')
+RETURN sc.commit.listTriggers()
+
+MATCH (n:testNode) DETACH DELETE n
 ----
 
 
